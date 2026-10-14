@@ -235,7 +235,7 @@ function hero() {
       end: () => '+=' + Math.round(window.innerHeight * 1.1),
       pin: true,
       scrub: 0.8,
-      refreshPriority: 5,
+      refreshPriority: 6,
       invalidateOnRefresh: true,
     },
   })
@@ -272,7 +272,7 @@ function servicesStrip() {
       end: () => '+=' + dist(),
       pin: true,
       scrub: 0.8,
-      refreshPriority: 4,
+      refreshPriority: 5,
       invalidateOnRefresh: true,
     },
   })
@@ -302,7 +302,7 @@ function quoteFill() {
     stagger: 0.12,
     duration: 0.25,
     scrollTrigger: desktopMQ.matches
-      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 2, invalidateOnRefresh: true }
+      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 1, invalidateOnRefresh: true }
       : { trigger: '.quote', start: 'top 70%', end: 'bottom 45%', scrub: 0.6 },
   })
 }
@@ -343,23 +343,56 @@ function cards() {
   })
 }
 
-/* ---------- pourquoi nous: rolling counter + active row ---------- */
-function why() {
-  if (desktopMQ.matches) {
-    const tl = gsap.timeline()
-    tl.to({}, { duration: 1 }, 0)
-      .fromTo('.why-bar i', { scaleX: 0 }, { scaleX: 1, duration: 1, ease: 'none' }, 0)
-    for (let k = 1; k < 5; k++) tl.to('.why-strip', { yPercent: -20 * k, duration: 0.07, ease: 'power2.inOut' }, k * 0.2 - 0.035)
-    ScrollTrigger.create({ trigger: '.why-list', start: 'top 50%', end: 'bottom 50%', scrub: 0.6, animation: tl })
+/* ---------- pourquoi nous: camera flight between floating photo cards ---------- */
+function whyFlight() {
+  const stage = $('.why-stage'), world = $('.why-world'), ghost = $('.why-ghost'), strip = $('.why-strip')
+  const cards = $$('.why-card').map((el, i) => ({ el, img: $('img', el), i }))
+  const N = cards.length
+  const D = 1500, D0 = 700 // depth gap between cards, depth of the first card
+  const XS = [-0.23, 0.22, -0.2, 0.21, 0], YS = [-0.03, 0.04, 0.01, -0.04, 0.02]
+  const total = D0 + (N - 1) * D // the last card lands on the screen plane
+  const state = { z: 0 }
+  let active = -1
+
+  const layout = () => {
+    const vw = root.clientWidth, vh = window.innerHeight
+    const k = desktopMQ.matches ? 1 : 0.55 // narrower spread on phones
+    cards.forEach(c => {
+      c.z = -(D0 + c.i * D)
+      gsap.set(c.el, { x: XS[c.i] * vw * k, y: YS[c.i] * vh, z: c.z, rotateY: -XS[c.i] * 34, xPercent: -50, yPercent: -55 })
+    })
   }
-  // Each reason lights up while it crosses the middle of the screen, then dims again.
-  $$('.why-row').forEach(row => {
-    const tl = gsap.timeline()
-    tl.fromTo(row, { opacity: 0.2 }, { opacity: 1, duration: 0.25, ease: 'none' })
-      .fromTo($('h3', row), { yPercent: 40 }, { yPercent: 0, duration: 0.25, ease: 'power2.out' }, 0)
-      .to(row, { opacity: 1, duration: 0.5 })
-      .to(row, { opacity: 0.2, duration: 0.25, ease: 'none' })
-    ScrollTrigger.create({ trigger: row, start: 'top 78%', end: 'bottom 22%', scrub: 0.6, animation: tl })
+
+  const render = () => {
+    const p = state.z / total
+    // camera pan: move the vanishing point rather than rotating the world (deep cards would swing off-screen)
+    gsap.set(world, { z: state.z })
+    stage.style.perspectiveOrigin = `${50 + Math.sin(p * Math.PI * 2) * 7}% ${46 - Math.sin(p * Math.PI) * 4}%`
+    gsap.set(ghost, { scale: 0.85 + p * 0.5, opacity: 1 - p * 0.75 })
+    cards.forEach(c => {
+      const vz = state.z + c.z // depth as seen by the camera
+      const fadeIn = gsap.utils.clamp(0, 1, (vz + 2.6 * D) / (0.8 * D))
+      const fadeOut = gsap.utils.clamp(0, 1, 1 - (vz - 260) / 520)
+      const o = Math.min(fadeIn, fadeOut)
+      gsap.set(c.el, { opacity: o, visibility: o > 0.01 ? 'visible' : 'hidden' })
+      gsap.set(c.img, { yPercent: gsap.utils.clamp(-1, 1, vz / D) * -5 })
+    })
+    const idx = gsap.utils.clamp(0, N - 1, Math.round((state.z - D0) / D))
+    if (idx !== active) {
+      active = idx
+      gsap.to(strip, { yPercent: -idx * 20, duration: 0.6, ease: 'power3.out', overwrite: true })
+    }
+  }
+
+  layout()
+  render()
+  ScrollTrigger.addEventListener('refreshInit', () => { layout() })
+  gsap.to(state, {
+    z: total, ease: 'none', onUpdate: render,
+    scrollTrigger: {
+      trigger: '.why', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * N * 0.85),
+      pin: true, scrub: 1, refreshPriority: 4, invalidateOnRefresh: true, onRefresh: render,
+    },
   })
 }
 
@@ -455,22 +488,33 @@ function zone() {
   })
 }
 
-/* ---------- de A à Z: cards stack and tilt back in depth ---------- */
-function azStack() {
+/* ---------- de A à Z: a face-down deck stands up, fans out and flips ---------- */
+function azDeck() {
   const cards = $$('.az-card')
-  const stickTop = i => (desktopMQ.matches ? (150 + i * 26) * U : 72 + i * 14)
-  cards.forEach((card, i) => {
-    gsap.fromTo(card, { y: 90 * U, opacity: 0.3 }, {
-      y: 0, opacity: 1, ease: 'power2.out',
-      scrollTrigger: { trigger: card, start: 'top bottom', end: 'top 68%', scrub: 0.6 },
-    })
-    const next = cards[i + 1]
-    if (!next) return
-    // explicit start values: GSAP reads filter "none" as brightness(0)
-    gsap.fromTo(card, { scale: 1, rotateX: 0, filter: 'brightness(1)' }, {
-      scale: 0.9, rotateX: 7, filter: 'brightness(0.93)', ease: 'none', immediateRender: false,
-      scrollTrigger: { trigger: next, start: 'top bottom', end: () => `top ${Math.round(stickTop(i + 1))}px`, scrub: 0.6, invalidateOnRefresh: true },
-    })
+  const flips = cards.map(c => $('.az-flip', c))
+  const mid = (cards.length - 1) / 2
+  const desk = () => desktopMQ.matches
+  const tilt = [-4, 3, -2, 5, -1]
+
+  const tl = gsap.timeline()
+  tl.fromTo(cards,
+    { x: i => (i - mid) * 3, y: () => 110 * U, z: i => i * 6, rotateX: 66, rotateY: 0, rotateZ: i => tilt[i], scale: 0.8 },
+    { y: 0, rotateX: 0, rotateZ: 0, scale: 1, duration: 1, ease: 'power2.inOut', stagger: 0.04 })
+    .to(cards, {
+      // desktop: a fan held in the hand; phone: dealt down the table in a vertical spread
+      x: i => (desk() ? (i - mid) * 262 : (i % 2 ? 18 : -18)) * U,
+      y: i => (desk() ? Math.abs(i - mid) * 26 : (i - mid) * 112) * U,
+      z: i => (desk() ? -Math.abs(i - mid) * 40 : 0),
+      rotateZ: i => (desk() ? (i - mid) * 7 : (i % 2 ? 3 : -3)),
+      rotateY: i => (desk() ? (i - mid) * -6 : 0),
+      duration: 1.2, ease: 'power3.inOut', stagger: { each: 0.06, from: 'center' },
+    }, 1)
+    .fromTo(flips, { rotateY: 180 }, { rotateY: 0, duration: 0.7, ease: 'power2.inOut', stagger: 0.14 }, 1.5)
+    .to({}, { duration: 0.4 })
+
+  ScrollTrigger.create({
+    animation: tl, trigger: '.az', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 2.4),
+    pin: true, scrub: 1, refreshPriority: 2, invalidateOnRefresh: true,
   })
 }
 
@@ -509,8 +553,8 @@ async function boot() {
   $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
   servicesStrip()
   quoteFill()
-  why()
-  azStack()
+  whyFlight()
+  azDeck()
   parallax()
   cards()
   smoothScroll()
