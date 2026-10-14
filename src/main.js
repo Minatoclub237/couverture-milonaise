@@ -205,12 +205,6 @@ function reveal(el, type) {
 
 /* Gentle depth: large photos drift inside their frames for the whole time they are on screen. */
 function parallax() {
-  $$('.intro-img img').forEach(img => {
-    gsap.fromTo(img, { yPercent: -5 }, {
-      yPercent: 5, ease: 'none',
-      scrollTrigger: { trigger: img.parentElement.parentElement, start: 'top bottom', end: 'bottom top', scrub: true },
-    })
-  })
   gsap.fromTo('.about .win-inner img', { yPercent: -4 }, {
     yPercent: 4, ease: 'none',
     scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: true },
@@ -372,6 +366,134 @@ function quickBar() {
     onUpdate: self => show(self.direction < 0),
     onToggle: self => { if (!self.isActive) show(false); fab.classList.toggle('is-on', self.isActive) },
   })
+}
+
+/* ---------- sur le chantier: a tilted wall of live job-site videos; the scroll pulls six
+   of them out into a 3D reel the visitor flips through, the rest scatter past the camera ---------- */
+function reelsScene() {
+  const world = $('.reels-world'), veil = $('.reels-veil'), head = $('.reels-head'), hud = $('.reels-hud'), bar = $('.reels-bar i')
+  const words = splitWords($('.reels-title'))
+  const strips = $$('.reels-hud .roll-strip')
+  const cards = $$('.reel').map((el, i) => ({
+    el, i, v: $('video', el), chip: $('.reel-chip', el), on: false,
+    j: el.dataset.cover === undefined ? -1 : +el.dataset.cover,
+  }))
+  const N = cards.filter(c => c.j >= 0).length
+  const st = { drift: 0, g: 0, fly: 0, hud: 0, idx: 0 }
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
+  let L, active = -1, near = false, loaded = false
+
+  const layout = () => {
+    const vw = root.clientWidth, vh = window.innerHeight, desk = desktopMQ.matches
+    const cols = desk ? 4 : 3
+    const cw = desk ? 236 * HU : vw * 0.3, ch = cw * 16 / 9
+    const big = (desk ? 0.78 : 0.5) * vh / ch
+    const hw = cw * big / 2
+    L = {
+      desk, cols, rows: Math.ceil(cards.length / cols), cw, ch, gap: desk ? 26 * HU : 10, big, hw,
+      x0: desk ? vw * 0.06 : 0, y0: desk ? 0 : -vh * 0.1,
+      peek: hw + cw * big * (desk ? 0.24 : 0.12), step: desk ? 150 * HU : 24,
+    }
+    cards.forEach(c => Object.assign(c.el.style, { width: cw + 'px', height: ch + 'px', marginLeft: -cw / 2 + 'px', marginTop: -ch / 2 + 'px' }))
+  }
+
+  // the wall: alternate columns drift up and down, half a card apart
+  const wallPos = c => {
+    const col = c.i % L.cols, row = Math.floor(c.i / L.cols), dir = col % 2 ? 1 : -1
+    return {
+      x: (col - (L.cols - 1) / 2) * (L.cw + L.gap),
+      y: (row - (L.rows - 1) / 2) * (L.ch + L.gap) + (col % 2 ? (L.ch + L.gap) / 2 : 0) + dir * (st.drift - 0.5) * L.ch * 0.9,
+      z: 0, ry: 0, s: 1, o: 1, py: dir * (st.drift - 0.5) * -12, px: 0,
+    }
+  }
+  // the reel: upcoming clips stack to the right in depth, played ones slide out left
+  const coverPos = d => {
+    const a = Math.abs(d), n = Math.min(a, 1), far = Math.max(0, d - 1)
+    if (d >= 0) return {
+      x: L.x0 + n * L.peek + far * L.step, y: L.y0, z: -n * 260 - far * 140,
+      ry: -n * 30, s: L.big * (1 - 0.32 * n - 0.06 * far), o: clamp01(3.4 - d), py: 0, px: -Math.min(d, 1.5) * 8,
+    }
+    return { x: L.x0 + d * L.hw * 2.6, y: L.y0, z: -n * 120, ry: n * 24, s: L.big * (1 - 0.12 * n), o: clamp01(1 - a * 1.7), py: 0, px: n * 8 }
+  }
+
+  const load = () => {
+    if (loaded) return
+    loaded = true
+    cards.forEach(c => { c.v.preload = 'auto'; c.v.src = c.v.dataset.src })
+  }
+
+  const render = () => {
+    mouse.x += (mouse.tx - mouse.x) * 0.06
+    mouse.y += (mouse.ty - mouse.y) * 0.06
+    const e = inOut(clamp01(st.g)), k = 1 - e
+    world.style.transform = `translate3d(0, ${(6 * k).toFixed(2)}vh, ${(-150 * k).toFixed(1)}px) rotateX(${(24 * k - mouse.y * 3 * e).toFixed(2)}deg) rotateY(${(mouse.x * 5 * e).toFixed(2)}deg) rotateZ(${(-12 * k).toFixed(2)}deg) scale(${(1.3 - 0.3 * e).toFixed(4)})`
+    veil.style.opacity = (1 - 0.7 * e).toFixed(3)
+    const f = inOut(clamp01(st.fly))
+    head.style.opacity = (1 - f).toFixed(3)
+    head.style.transform = `scale(${(1 + 1.6 * f).toFixed(4)})`
+    hud.style.opacity = st.hud.toFixed(3)
+    bar.style.transform = `scaleX(${(st.idx / (N - 1)).toFixed(4)})`
+    const idxR = Math.round(st.idx)
+    if (idxR !== active) {
+      active = idxR
+      strips.forEach(s => gsap.to(s, { yPercent: -idxR * 100 / N, duration: 0.6, ease: 'power3.out', overwrite: true }))
+    }
+
+    cards.forEach(c => {
+      const w = wallPos(c)
+      let p
+      if (c.j >= 0) {
+        const cv = coverPos(c.j - st.idx)
+        p = {}
+        for (const key in w) p[key] = w[key] + (cv[key] - w[key]) * e
+      } else {
+        const sc = inOut(clamp01(st.g * 1.25)) // the others fly apart, past the camera
+        p = { ...w, x: w.x * (1 + 1.6 * sc), y: w.y * (1 + 1.1 * sc), z: 900 * sc, o: 1 - clamp01(sc * 1.4) }
+      }
+      c.el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, ${p.z.toFixed(1)}px) rotateY(${p.ry.toFixed(2)}deg) scale(${p.s.toFixed(4)})`
+      c.el.style.opacity = p.o.toFixed(3)
+      c.el.style.visibility = p.o < 0.01 ? 'hidden' : ''
+      c.v.style.transform = `translate3d(${p.px.toFixed(2)}%, ${p.py.toFixed(2)}%, 0) scale(1.18)` // parallax inside the frame
+      const d = c.j >= 0 ? Math.abs(c.j - st.idx) : 9
+      c.chip.style.opacity = (e * (1 - Math.min(d, 1))).toFixed(3)
+      c.chip.style.transform = `scale(${(1 / p.s).toFixed(4)})` // the card is scaled up: keep the tag at its real size
+      const want = near && p.o > 0.05 && (e < 0.5 || d < 1.6)
+      if (want !== c.on) {
+        c.on = want
+        if (want) c.v.play().catch(() => {})
+        else c.v.pause()
+      }
+    })
+  }
+
+  layout()
+  const tl = gsap.timeline({ defaults: { ease: 'none' }, onUpdate: render })
+  tl.fromTo(words, { yPercent: 118 }, { yPercent: 0, duration: 0.5, stagger: 0.06, ease: 'power3.out' }, 0)
+    .fromTo('.reels-head .kicker', { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0)
+    .to(st, { drift: 1, duration: 2.4 }, 0)
+    .to(st, { fly: 1, duration: 0.5 }, 1.1)
+    .to(st, { g: 1, duration: 1.1 }, 1.2)
+    .to(st, { hud: 1, duration: 0.3 }, 2.1)
+    .to(st, { idx: N - 1, duration: 3.8 }, 2.4)
+    .to({}, { duration: 0.3 })
+  const pinST = ScrollTrigger.create({
+    animation: tl, trigger: '.reels', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 4.4),
+    pin: true, scrub: 1, refreshPriority: 5.5, invalidateOnRefresh: true,
+  })
+  // videos only download and play while the pinned scene is around the viewport
+  ScrollTrigger.create({
+    start: () => pinST.start - window.innerHeight * 1.8, end: () => pinST.end + window.innerHeight,
+    onToggle: self => { near = self.isActive; if (near) load(); render() },
+  })
+  render()
+  ScrollTrigger.addEventListener('refresh', () => { layout(); render() })
+  gsap.ticker.add(() => { if (near) render() })
+  if (desktopMQ.matches) {
+    $('.reels-stage').addEventListener('pointermove', ev => {
+      mouse.tx = (ev.clientX / window.innerWidth - 0.5) * 2
+      mouse.ty = (ev.clientY / window.innerHeight - 0.5) * 2
+    })
+  }
 }
 
 /* ---------- services: pinned horizontal strip ---------- */
@@ -696,6 +818,7 @@ async function boot() {
 
   hero()
   quickBar()
+  reelsScene()
   zone()
   $$('[data-split]').forEach(el => { if (!el.closest('.hero')) reveal(el, el.dataset.split) })
   $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
