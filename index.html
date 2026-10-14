@@ -12,13 +12,20 @@
 </head>
 <body>
 
-  <!-- ============ HERO ============ -->
+  <!-- Barre d'accès rapide : apparaît après le hero, à la remontée -->
+  <header class="bar" aria-label="Accès rapide">
+    <a class="logo" href="#accueil" aria-label="Couverture Milonaise — accueil"><span class="logo-mark" aria-hidden="true"></span><span class="logo-w">COUVERTURE</span><span class="logo-w">MILONAISE</span></a>
+    <div class="bar-actions">
+      <a class="bar-tel" href="tel:+33640365146"><svg class="i-tel" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg><span>06 40 36 51 46</span></a>
+      <a class="btn bar-btn" href="#contact"><span>Devis gratuit</span></a>
+    </div>
+  </header>
+  <a class="fab-call" href="tel:+33640365146" aria-label="Appeler Couverture Milonaise au 06 40 36 51 46"><svg class="i-tel" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></a>
+
+  <!-- ============ HERO : volets 3D ouverts puis refermés par le scroll ============ -->
   <section class="hero" id="accueil">
     <nav class="nav" aria-label="Navigation principale">
-      <a class="logo" href="#accueil" aria-label="Couverture Milonaise — accueil">
-        <span class="logo-mark" aria-hidden="true"></span>
-        <span class="logo-w">COUVERTURE</span><span class="logo-w">MILONAISE</span>
-      </a>
+      <a class="logo" href="#accueil" aria-label="Couverture Milonaise — accueil"><span class="logo-mark" aria-hidden="true"></span><span class="logo-w">COUVERTURE</span><span class="logo-w">MILONAISE</span></a>
       <ul class="nav-links">
         <li><a href="#accueil">Accueil</a></li>
         <li><a href="#services">Nos services</a></li>
@@ -26,7 +33,7 @@
         <li><a href="#a-propos">À propos</a></li>
         <li><a href="#zone">Zone d'intervention</a></li>
       </ul>
-      <a class="nav-contact" href="#contact">Contact</a>
+      <a class="nav-tel" href="tel:+33640365146"><svg class="i-tel" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg><span>06 40 36 51 46</span></a>
     </nav>
 
     <p class="hero-label hero-label--1">Couverture · Charpente<br>Zinguerie</p>
@@ -36,13 +43,25 @@
 
     <p class="hero-loc">AISNE (02)</p>
     <p class="hero-text" data-split="lines">Artisans couvreurs à La Ferté-Milon&nbsp;: couverture, charpente, zinguerie et isolation, à moins d'une heure de chez vous.</p>
-    <a class="btn hero-btn" href="#contact"><span>Devis &amp; conseils gratuits</span></a>
+    <div class="hero-cta">
+      <a class="btn hero-btn" href="#contact"><span>Devis &amp; conseils gratuits</span></a>
+      <div class="hero-trust">
+        <p><span class="stars" aria-hidden="true">★★★★★</span> <b>5,0</b> · 4 avis Google</p>
+        <p><b>Certifié RGE</b> QUALIBAT</p>
+      </div>
+    </div>
 
     <button class="scroll-hint" type="button"><span>Faites défiler</span><i aria-hidden="true"></i></button>
 
     <div class="hero-media" aria-hidden="true">
-      <div class="win win-a"><div class="win-inner"><img src="/img/hero.webp" alt="" /></div></div>
-      <div class="win win-b"><div class="win-inner"><img src="/img/hero.webp" alt="" /></div></div>
+      <div class="hero-tilt">
+        <div class="panel panel-a" data-slats="6"></div>
+        <div class="panel panel-b" data-slats="4"></div>
+      </div>
+    </div>
+    <div class="hero-endcard" aria-hidden="true">
+      <p class="end-name">Couverture Milonaise</p>
+      <p class="end-sub">Artisans couvreurs · La Ferté-Milon</p>
     </div>
   </section>
 

@@ -12,10 +12,12 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
 const desktopMQ = matchMedia('(min-width: 900px)')
 
 /* 1 unit = 1 px of the 1440-wide reference frame (390 on mobile) */
-let U = 1
+let U = 1, HU = 1
 function setUnit() {
   U = root.clientWidth / (desktopMQ.matches ? 1440 : 390)
+  HU = desktopMQ.matches ? Math.min(U, window.innerHeight / 960) : U // the hero fits the frame in height too
   root.style.setProperty('--u', U + 'px')
+  root.style.setProperty('--hu', HU + 'px')
 }
 setUnit()
 
@@ -219,38 +221,152 @@ function parallax() {
   })
 }
 
-/* ---------- hero: built by the scroll, pinned until complete ---------- */
-let heroTrigger = null
+/* ---------- hero: 3D shutters opened, then closed, by the scroll ----------
+   Frame 0: two closed shutters breathe in depth. Scrolling swings them in and flips
+   their slats open one by one (the photo appears slice by slice) while TOITURES is
+   laid letter by letter like tiles. Then the copy recedes, the small shutter flies
+   past the camera, the tall one grows to full screen and flips shut to green,
+   its slat backs assembling the client's logo: a film title card. */
+let heroTrigger = null, heroOpenEnd = () => window.innerHeight
+const HERO_AR = 1328 / 1920
+const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v)
+const inOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+const lerpRect = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t })
+
 function hero() {
+  const heroEl = $('.hero'), media = $('.hero-media'), tilt = $('.hero-tilt')
   const chars = splitChars($('.hero-title'))
   const lines = splitLines($('.hero-text'))
-  const winA = $('.hero .win-a'), winB = $('.hero .win-b')
-  const navItems = ['.nav .logo-mark', ...$$('.nav .logo-w'), ...$$('.nav-links li'), '.nav-contact']
+
+  const panels = $$('.panel').map((el, pi) => {
+    const n = +el.dataset.slats
+    const slats = []
+    for (let k = 0; k < n; k++) {
+      const s = document.createElement('div')
+      s.className = 'slat'
+      s.innerHTML = '<div class="slat-face slat-front"><div class="slat-img"></div></div>'
+        + '<div class="slat-face slat-back">' + (pi === 0 ? '<div class="slat-logo"></div>' : '') + '</div>'
+      el.appendChild(s)
+      slats.push({ el: s, img: $('.slat-img', s), logo: $('.slat-logo', s), k })
+    }
+    el.classList.add('is-built')
+    return { el, n, slats, r0: null, fromRight: pi === 0 }
+  })
+  const [A, B] = panels
+
+  const st = { open: 0, sep: 0, fly: 0, exit: 0, close: 0 }
+  let M, V
+  const layout = () => {
+    panels.forEach(p => { p.el.style.left = p.el.style.top = p.el.style.width = p.el.style.height = '' })
+    M = { x: media.offsetLeft, y: media.offsetTop, w: media.offsetWidth, h: media.offsetHeight }
+    V = { x: -M.x, y: -M.y, w: root.clientWidth, h: window.innerHeight } // the viewport, in media coordinates
+    panels.forEach(p => { p.r0 = { x: p.el.offsetLeft, y: p.el.offsetTop, w: p.el.offsetWidth, h: p.el.offsetHeight } })
+  }
+
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
+  const t0 = performance.now()
+  const render = () => {
+    const time = (performance.now() - t0) / 1000
+    const e = inOut(clamp01(st.exit))
+    const k = 1 - e
+    mouse.x += (mouse.tx - mouse.x) * 0.06
+    mouse.y += (mouse.ty - mouse.y) * 0.06
+    tilt.style.transform = `rotateX(${(-mouse.y * 5 * k).toFixed(3)}deg) rotateY(${(mouse.x * 7 * k).toFixed(3)}deg)`
+
+    // the photo frame grows with the tall panel so the image stays continuous
+    const F = lerpRect({ x: 0, y: 0, w: M.w, h: M.h }, V, e)
+    const cw = Math.max(F.w, F.h * HERO_AR), ch = cw / HERO_AR
+    const ix = F.x + (F.w - cw) / 2, iy = F.y + (F.h - ch) / 2
+
+    const o = inOut(clamp01(st.open))
+    const rA = lerpRect(A.r0, V, e)
+    A.el.style.left = rA.x + 'px'; A.el.style.top = rA.y + 'px'
+    A.el.style.width = rA.w + 'px'; A.el.style.height = rA.h + 'px'
+    A.el.style.transform = `translateZ(${(-380 * (1 - o) - 50 * st.sep * k).toFixed(1)}px) rotateY(${(-26 * (1 - o)).toFixed(2)}deg)`
+    A.el.classList.toggle('is-closing', st.close > 0.001)
+    const fly = inOut(clamp01(st.fly))
+    B.el.style.transform = `translate3d(${(-180 * fly).toFixed(1)}px,0,${(-380 * (1 - o) + 80 * st.sep + 560 * fly).toFixed(1)}px) rotateY(${(-20 * (1 - o) + 28 * fly).toFixed(2)}deg)`
+    B.el.style.opacity = 1 - fly
+    B.el.style.visibility = fly > 0.995 ? 'hidden' : ''
+
+    const idle = 1 - clamp01(st.open * 3)
+    panels.forEach((p, pi) => {
+      const r = p === A ? rA : p.r0
+      const sw = r.w / p.n
+      p.slats.forEach(s => {
+        const order = (p.fromRight ? p.n - 1 - s.k : s.k) / (p.n - 1)
+        const lo = inOut(clamp01((st.open - order * 0.45) / 0.55))
+        const lc = p === A ? inOut(clamp01((st.close - (s.k / (p.n - 1)) * 0.45) / 0.55)) : 0
+        const ang = 180 * (1 - lo) - 180 * lc + Math.sin(time * 1.5 + s.k * 0.75 + pi * 1.7) * 8 * idle
+        const z = Math.sin(lo * Math.PI) * 60 + Math.sin(lc * Math.PI) * 90
+        const x = s.k * sw
+        s.el.style.left = x + 'px'
+        s.el.style.width = sw + 0.6 + 'px'
+        s.el.style.transform = `translateZ(${z.toFixed(1)}px) rotateY(${ang.toFixed(2)}deg)`
+        s.el.style.setProperty('--shade', (Math.abs(Math.sin(ang * Math.PI / 180)) * 0.5).toFixed(3))
+        s.img.style.cssText = `left:${(ix - r.x - x).toFixed(1)}px;top:${(iy - r.y).toFixed(1)}px;width:${cw.toFixed(1)}px;height:${ch.toFixed(1)}px`
+        if (s.logo) s.logo.style.cssText = `left:${(-x).toFixed(1)}px;width:${r.w.toFixed(1)}px;height:${r.h.toFixed(1)}px`
+      })
+    })
+  }
 
   const tl = gsap.timeline({
-    defaults: { ease: 'power2.out' },
+    defaults: { ease: 'none' },
     scrollTrigger: {
-      trigger: '.hero',
-      start: 'top top',
-      end: () => '+=' + Math.round(window.innerHeight * 1.1),
-      pin: true,
-      scrub: 0.8,
-      refreshPriority: 6,
-      invalidateOnRefresh: true,
+      trigger: '.hero', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 3.3),
+      pin: true, scrub: 1, refreshPriority: 6, invalidateOnRefresh: true,
     },
   })
-  tl.to('.scroll-hint', { opacity: 0, y: 12, duration: 0.18, ease: 'none' }, 0)
-    .fromTo(winA, { clipPath: 'inset(0% 0% 97% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.4 }, 0)
-    .fromTo($('.win-inner', winA), { yPercent: -16 }, { yPercent: 0, duration: 1.5 }, 0)
-    .fromTo(winB, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.35 }, 0.1)
-    .fromTo($('.win-inner', winB), { yPercent: 12 }, { yPercent: 0, duration: 1.5 }, 0.1)
-    .fromTo(navItems, { opacity: 0 }, { opacity: 1, duration: 0.45, stagger: 0.08, ease: 'none' }, 0.05)
-    .fromTo(chars, { yPercent: 110 }, { yPercent: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out' }, 0.12)
-    .fromTo(['.hero-label', '.hero-loc'], { opacity: 0 }, { opacity: 1, duration: 0.5, stagger: 0.1, ease: 'none' }, 0.4)
-    .fromTo(lines, { yPercent: 118 }, { yPercent: 0, duration: 0.8, stagger: 0.09, ease: 'power3.out' }, 0.6)
-    .fromTo('.hero-btn', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.6, ease: 'power2.inOut' }, 0.85)
-    .to({}, { duration: 0.2 })
+  tl.to('.scroll-hint', { opacity: 0, y: 12, duration: 0.2 }, 0)
+    .to(st, { open: 1, duration: 1.15 }, 0)
+    .fromTo($$('.nav-links li'), { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.07 }, 0.1)
+    .fromTo(chars, { rotationX: 95, z: -120, opacity: 0, transformOrigin: '50% 100%' }, { rotationX: 0, z: 0, opacity: 1, duration: 0.7, stagger: 0.07, ease: 'back.out(1.3)' }, 0.2)
+    .fromTo(['.hero-label', '.hero-loc'], { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.08 }, 0.45)
+    .fromTo(lines, { yPercent: 118 }, { yPercent: 0, duration: 0.6, stagger: 0.08, ease: 'power3.out' }, 0.75)
+    .fromTo('.hero-btn', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.45, ease: 'power2.inOut' }, 1.05)
+    .fromTo('.hero-trust p', { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.35, stagger: 0.1 }, 1.2)
+    .to(st, { sep: 1, duration: 0.5, ease: 'sine.inOut' }, 1.1)
+    .addLabel('exit', 2)
+    .to(chars, { rotationX: -90, z: 60, opacity: 0, duration: 0.45, stagger: 0.04, ease: 'power2.in' }, 'exit')
+    .to(['.hero-label', '.hero-loc', '.hero-text', '.hero-cta'], { z: -300, opacity: 0, duration: 0.5, stagger: 0.04, ease: 'power2.in' }, 'exit')
+    .to('.nav', { opacity: 0, y: -16, duration: 0.35 }, 'exit')
+    .to(st, { fly: 1, duration: 0.6 }, 'exit')
+    .to(st, { exit: 1, duration: 0.9 }, 'exit+=0.15')
+    .to(st, { close: 1, duration: 0.9 }, 'exit+=1.15')
+    .fromTo('.hero-endcard', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 'exit+=1.8')
+    .to({}, { duration: 0.35 })
   heroTrigger = tl.scrollTrigger
+  heroOpenEnd = () => heroTrigger.start + ((tl.labels.exit - 0.2) / tl.duration()) * (heroTrigger.end - heroTrigger.start)
+
+  layout()
+  render()
+  ScrollTrigger.addEventListener('refresh', () => { layout(); render() })
+  gsap.ticker.add(() => { if (window.scrollY <= heroTrigger.end + window.innerHeight) render() })
+  if (desktopMQ.matches) {
+    heroEl.addEventListener('pointermove', ev => {
+      mouse.tx = (ev.clientX / window.innerWidth - 0.5) * 2
+      mouse.ty = (ev.clientY / window.innerHeight - 0.5) * 2
+    })
+    heroEl.addEventListener('pointerleave', () => { mouse.tx = mouse.ty = 0 })
+  }
+}
+
+/* ---------- quick-access bar: hidden while scrolling down, back on the way up ---------- */
+function quickBar() {
+  const bar = $('.bar'), fab = $('.fab-call')
+  let shown = false
+  const show = v => {
+    if (v === shown) return
+    shown = v
+    gsap.to(bar, { yPercent: v ? 0 : -110, duration: 0.5, ease: 'power3.out', overwrite: true })
+  }
+  gsap.set(bar, { yPercent: -110, y: 0 })
+  bar.style.transform = ''
+  ScrollTrigger.create({
+    start: () => heroTrigger.end + 10, end: 'max',
+    onUpdate: self => show(self.direction < 0),
+    onToggle: self => { if (!self.isActive) show(false); fab.classList.toggle('is-on', self.isActive) },
+  })
 }
 
 /* ---------- services: pinned horizontal strip ---------- */
@@ -558,8 +674,8 @@ function smoothScroll() {
     e.preventDefault()
     lenis.scrollTo(target, { duration: 1.6 })
   }))
-  // "Faites défiler" plays the whole hero build, then stops where the hero is complete
-  $('.scroll-hint').addEventListener('click', () => lenis.scrollTo(heroTrigger ? heroTrigger.end : window.innerHeight, { duration: 2.4 }))
+  // "Faites défiler" opens the shutters and stops on the finished hero, before the exit
+  $('.scroll-hint').addEventListener('click', () => lenis.scrollTo(heroOpenEnd(), { duration: 2.4 }))
 }
 
 /* ---------- boot ---------- */
@@ -574,6 +690,7 @@ async function boot() {
   }
 
   hero()
+  quickBar()
   zone()
   $$('[data-split]').forEach(el => { if (!el.closest('.hero')) reveal(el, el.dataset.split) })
   $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
