@@ -226,9 +226,10 @@ function parallax() {
    their slats open one by one (the photo appears slice by slice) while TOITURES is
    laid letter by letter like tiles. Then the copy recedes, the small shutter flies
    past the camera, the tall one grows to full screen and flips shut to green,
-   its slat backs assembling the client's logo: a film title card. */
+   its slat backs assembling the 3D logo photo: a film title card. */
 let heroTrigger = null, heroOpenEnd = () => window.innerHeight
 const HERO_AR = 1328 / 1920
+const END_AR = 2870 / 1472, END_AR_PORTRAIT = 1080 / 2160
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v)
 const inOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 const lerpRect = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t })
@@ -245,22 +246,23 @@ function hero() {
       const s = document.createElement('div')
       s.className = 'slat'
       s.innerHTML = '<div class="slat-face slat-front"><div class="slat-img"></div></div>'
-        + '<div class="slat-face slat-back">' + (pi === 0 ? '<div class="slat-logo"></div>' : '') + '</div>'
+        + '<div class="slat-face slat-back">' + (pi === 0 ? '<div class="slat-bimg"></div>' : '') + '</div>'
       el.appendChild(s)
-      slats.push({ el: s, img: $('.slat-img', s), logo: $('.slat-logo', s), k })
+      slats.push({ el: s, img: $('.slat-img', s), bimg: $('.slat-bimg', s), k })
     }
     el.classList.add('is-built')
     return { el, n, slats, r0: null, fromRight: pi === 0 }
   })
   const [A, B] = panels
 
-  const st = { open: 0, sep: 0, fly: 0, exit: 0, close: 0 }
+  const st = { open: 0, sep: 0, fly: 0, exit: 0, close: 0, zoom: 0 }
   let M, V
   const layout = () => {
     panels.forEach(p => { p.el.style.left = p.el.style.top = p.el.style.width = p.el.style.height = '' })
     M = { x: media.offsetLeft, y: media.offsetTop, w: media.offsetWidth, h: media.offsetHeight }
     V = { x: -M.x, y: -M.y, w: root.clientWidth, h: window.innerHeight } // the viewport, in media coordinates
     panels.forEach(p => { p.r0 = { x: p.el.offsetLeft, y: p.el.offsetTop, w: p.el.offsetWidth, h: p.el.offsetHeight } })
+    A.el.classList.toggle('is-portrait', V.w / V.h < 1.15) // a tall screen would crop the wide title card through the logo
   }
 
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
@@ -282,7 +284,11 @@ function hero() {
     const rA = lerpRect(A.r0, V, e)
     A.el.style.left = rA.x + 'px'; A.el.style.top = rA.y + 'px'
     A.el.style.width = rA.w + 'px'; A.el.style.height = rA.h + 'px'
-    A.el.style.transform = `translateZ(${(-380 * (1 - o) - 50 * st.sep * k).toFixed(1)}px) rotateY(${(-26 * (1 - o)).toFixed(2)}deg)`
+    A.el.style.transform = `translateZ(${(-380 * (1 - o) - 50 * st.sep * k).toFixed(1)}px) rotateY(${(-26 * (1 - o)).toFixed(2)}deg) scale(${(1 + 0.06 * st.zoom).toFixed(4)})`
+    // title-card image, cover-fitted in the tall panel
+    const ear = A.el.classList.contains('is-portrait') ? END_AR_PORTRAIT : END_AR
+    const ecw = Math.max(rA.w, rA.h * ear), ech = ecw / ear
+    const ex = (rA.w - ecw) / 2, ey = (rA.h - ech) / 2
     A.el.classList.toggle('is-closing', st.close > 0.001)
     const fly = inOut(clamp01(st.fly))
     B.el.style.transform = `translate3d(${(-180 * fly).toFixed(1)}px,0,${(-380 * (1 - o) + 80 * st.sep + 560 * fly).toFixed(1)}px) rotateY(${(-20 * (1 - o) + 28 * fly).toFixed(2)}deg)`
@@ -301,11 +307,11 @@ function hero() {
         const z = Math.sin(lo * Math.PI) * 60 + Math.sin(lc * Math.PI) * 90
         const x = s.k * sw
         s.el.style.left = x + 'px'
-        s.el.style.width = sw + 0.6 + 'px'
+        s.el.style.width = sw + 1.5 + 'px' // overlap hides hairline seams between blades
         s.el.style.transform = `translateZ(${z.toFixed(1)}px) rotateY(${ang.toFixed(2)}deg)`
         s.el.style.setProperty('--shade', (Math.abs(Math.sin(ang * Math.PI / 180)) * 0.5).toFixed(3))
         s.img.style.cssText = `left:${(ix - r.x - x).toFixed(1)}px;top:${(iy - r.y).toFixed(1)}px;width:${cw.toFixed(1)}px;height:${ch.toFixed(1)}px`
-        if (s.logo) s.logo.style.cssText = `left:${(-x).toFixed(1)}px;width:${r.w.toFixed(1)}px;height:${r.h.toFixed(1)}px`
+        if (s.bimg) s.bimg.style.cssText = `left:${(ex - x).toFixed(1)}px;top:${ey.toFixed(1)}px;width:${ecw.toFixed(1)}px;height:${ech.toFixed(1)}px`
       })
     })
   }
@@ -333,8 +339,7 @@ function hero() {
     .to(st, { fly: 1, duration: 0.6 }, 'exit')
     .to(st, { exit: 1, duration: 0.9 }, 'exit+=0.15')
     .to(st, { close: 1, duration: 0.9 }, 'exit+=1.15')
-    .fromTo('.hero-endcard', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, 'exit+=1.8')
-    .to({}, { duration: 0.35 })
+    .to(st, { zoom: 1, duration: 1.1, ease: 'sine.out' }, 'exit+=1.6') // slow push-in on the title card
   heroTrigger = tl.scrollTrigger
   heroOpenEnd = () => heroTrigger.start + ((tl.labels.exit - 0.2) / tl.duration()) * (heroTrigger.end - heroTrigger.start)
 

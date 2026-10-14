@@ -168,19 +168,11 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
 .slat-face::after { content: ''; position: absolute; inset: 0; background: #0b1512; opacity: var(--shade, 0); pointer-events: none; }
 .slat-img { position: absolute; background: url('/img/hero.webp') 0 0 / 100% 100% no-repeat; }
 .slat-back { transform: rotateY(180deg); background: #e6f0eb; box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.85), inset -1px 0 0 rgba(47, 122, 104, 0.14); }
-.panel.is-closing .slat-back { background: var(--accent); box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.14); }
-.slat-logo {
-  position: absolute; top: 0; background: #fff; opacity: 0;
-  -webkit-mask: url('/img/logo-mark.png') 50% 40% / max(26%, 200px) auto no-repeat; mask: url('/img/logo-mark.png') 50% 40% / max(26%, 200px) auto no-repeat;
-}
-.panel.is-closing .slat-logo { opacity: 1; }
-.hero-endcard {
-  position: absolute; z-index: 4; left: 0; top: 0; width: 100%; height: 100vh; padding-top: 54vh;
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  color: #fff; pointer-events: none; opacity: 0;
-}
-.end-name { font-size: calc(var(--hu) * 76); font-weight: 760; line-height: 1; letter-spacing: -0.04em; text-transform: uppercase; }
-.end-sub { margin-top: 16px; font-size: var(--fs-label); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82); }
+.panel.is-closing .slat-back { background: #1e5541; box-shadow: none; }
+/* title card: the slat backs assemble the 3D logo photo when the shutter closes */
+.slat-bimg { position: absolute; opacity: 0; background: url('/img/endcard.webp') 0 0 / 100% 100% no-repeat; }
+.panel-a.is-portrait .slat-bimg { background-image: url('/img/endcard-portrait.webp'); }
+.panel.is-closing .slat-bimg { opacity: 1; }
 
 .win { position: absolute; overflow: hidden; }
 .win-inner { position: absolute; will-change: transform; }
@@ -541,8 +533,6 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
   .hero-media { position: relative; right: auto; top: auto; bottom: auto; flex: none; margin: 24px -16px 0; width: 100vw; height: var(--mh); }
   .panel-a { left: 45vw; width: 55vw; height: 100%; }
   .panel-b { left: 0; top: 53%; width: 45vw; height: 47%; }
-  .end-name { font-size: 30px; }
-  .end-sub { font-size: 12px; }
   .bar { height: 60px; padding: 0 16px; }
   .bar-tel { display: none; }
   .bar-btn { height: 42px; padding: 0 16px; font-size: 15px; }
