@@ -579,7 +579,7 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
   .track-wrap { top: auto; bottom: 18svh; height: auto; }
   .t-img { width: 62vw; height: 38vw; margin-right: 18px; }
   .t-word { font-size: 17vw; margin-right: 28px; }
-  .t-cap { display: none; }
+  .t-cap { top: calc(100% + 12px); font-size: 15px; } /* no hover on touch: the caption is driven by the scroll */
 
   .work { padding: 72px 16px 80px; }
   .work-head { grid-template-columns: 1fr; row-gap: 24px; }

@@ -506,7 +506,7 @@ function pinOffset(top, bottom) {
 function servicesStrip() {
   const track = $('.track')
   const dist = () => Math.max(0, track.scrollWidth - root.clientWidth)
-  gsap.to(track, {
+  const stripTween = gsap.to(track, {
     x: () => -dist(),
     ease: 'none',
     scrollTrigger: {
@@ -524,6 +524,13 @@ function servicesStrip() {
   $$('.t-img').forEach(item => {
     const fig = $('.t-fig', item), cap = $('.t-cap', item)
     gsap.set(cap, { y: 10 })
+    if (!desktopMQ.matches) {
+      // touch: the caption slides in as the photo reaches the middle of the screen
+      gsap.fromTo(cap, { opacity: 0, y: 14 }, {
+        opacity: 1, y: 0, ease: 'none',
+        scrollTrigger: { trigger: item, containerAnimation: stripTween, start: 'left 85%', end: 'left 45%', scrub: 0.6 },
+      })
+    }
     item.addEventListener('mouseenter', () => {
       if (!desktopMQ.matches) return
       gsap.to(fig, { left: -14 * U, right: -14 * U, bottom: -73 * U, duration: 0.75, ease: 'power3.out', overwrite: 'auto' })
@@ -562,6 +569,10 @@ function cards() {
     let i = 0, busy = false
 
     if (desktopMQ.matches && !reduce) gsap.set(panel, { yPercent: 101 })
+    else if (!reduce) {
+      // touch: no hover, so the black panel slides up with the scroll instead
+      gsap.fromTo(panel, { yPercent: 101 }, { yPercent: 0, ease: 'power2.out', scrollTrigger: { trigger: media, start: 'top 75%', end: 'top 30%', scrub: 0.6 } })
+    }
     media.addEventListener('mouseenter', () => desktopMQ.matches && gsap.to(panel, { yPercent: 0, duration: 0.7, ease: 'power3.out', overwrite: 'auto' }))
     media.addEventListener('mouseleave', () => desktopMQ.matches && gsap.to(panel, { yPercent: 101, duration: 0.6, ease: 'power3.inOut', overwrite: 'auto' }))
 
