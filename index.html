@@ -115,12 +115,14 @@
   <section class="work" id="realisations">
     <div class="work-head">
       <p class="work-text" data-split="lines">Nos chantiers&nbsp;: des maisons aux granges, des ateliers aux mairies, nous intervenons sur tout type de biens.</p>
+      <div class="work-side">
       <ul class="work-cats" data-reveal="stagger-fade">
         <li><b>Particuliers</b> maisons, garages, abris, granges</li>
         <li><b>Entreprises</b> bureaux, ateliers, hangars, commerces</li>
         <li><b>Collectivités</b> équipements, gymnases, mairies, écoles</li>
       </ul>
       <a class="btn work-btn" href="#contact" data-reveal="btn"><span>Devis gratuit</span></a>
+      </div>
     </div>
     <hr class="rule" data-reveal="rule" />
     <div class="cards">
@@ -214,16 +216,25 @@
     </div>
   </section>
 
-  <!-- ============ ZONE D'INTERVENTION ============ -->
+  <!-- ============ ZONE D'INTERVENTION : plateau 3D survolé par la caméra ============ -->
   <section class="zone" id="zone">
-    <div class="zone-text">
-      <p class="kicker" data-reveal="stagger-fade"><span>Où intervenons-nous&nbsp;?</span></p>
-      <h2 class="zone-title" data-split="words">Une heure<br>autour de<br>l'atelier</h2>
-      <p class="zone-base" data-reveal="fade-lines">Notre base&nbsp;: La Ferté-Milon, avenue de Verdun. Nous intervenons jusqu'aux agglomérations de&nbsp;:</p>
-      <ul class="zone-towns"></ul>
-    </div>
-    <div class="zone-map">
-      <svg class="map" viewBox="-100 -100 200 200" role="img" aria-label="Carte de la zone d'intervention autour de La Ferté-Milon"></svg>
+    <div class="zone-stage">
+      <div class="zone-hud">
+        <p class="kicker">Zone d'intervention</p>
+        <p class="zone-count" aria-label="60 minutes"><span class="zone-num">00</span><span class="zone-unit">min</span></p>
+        <p class="zone-line">autour de l'atelier de La Ferté‑Milon.</p>
+        <a class="btn zone-btn" href="#contact"><span>Devis gratuit</span></a>
+      </div>
+      <div class="zone-scene" aria-hidden="true">
+        <div class="zone-tilt">
+          <div class="zone-plate">
+            <div class="zone-grid"></div>
+            <svg class="map" viewBox="-100 -100 200 200"></svg>
+            <div class="zone-pins"></div>
+          </div>
+        </div>
+      </div>
+      <ul class="zone-towns sr-only"></ul>
     </div>
   </section>
 

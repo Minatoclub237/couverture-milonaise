@@ -283,7 +283,7 @@ function servicesStrip() {
     gsap.set(cap, { y: 10 })
     item.addEventListener('mouseenter', () => {
       if (!desktopMQ.matches) return
-      gsap.to(fig, { left: -28 * U, right: -28 * U, bottom: -73 * U, duration: 0.75, ease: 'power3.out', overwrite: 'auto' })
+      gsap.to(fig, { left: -14 * U, right: -14 * U, bottom: -73 * U, duration: 0.75, ease: 'power3.out', overwrite: 'auto' })
       gsap.to(cap, { opacity: 1, y: 0, duration: 0.6, delay: 0.12, ease: 'power3.out', overwrite: 'auto' })
     })
     item.addEventListener('mouseleave', () => {
@@ -407,8 +407,11 @@ const TOWNS = [
 ]
 const KM = 100 / 46 // svg units per kilometre
 
+/* The map is a physical plate in 3D: the camera starts straight above the workshop,
+   pulls back and tilts it, the rings ripple out, then the plate orbits while each
+   town rises as a pin whose label always faces the camera. */
 function zone() {
-  const svg = $('.map'), list = $('.zone-towns')
+  const svg = $('.map'), pinsBox = $('.zone-pins'), list = $('.zone-towns'), num = $('.zone-num')
   const NS = 'http://www.w3.org/2000/svg'
   const add = (tag, attrs, parent = svg) => {
     const e = document.createElementNS(NS, tag)
@@ -418,15 +421,7 @@ function zone() {
   }
   const kx = 111.32 * Math.cos(HOME[0] * Math.PI / 180), ky = 110.57
 
-  const rings = [10, 20, 30, 40].map(km => {
-    const r = km * KM
-    const c = add('circle', { class: 'ring', cx: 0, cy: 0, r })
-    const t = add('text', { class: 'ring-label', x: (r * 0.72).toFixed(2), y: (-r * 0.69).toFixed(2) })
-    t.textContent = km + ' km'
-    return { c, t }
-  })
-
-  // "≈ 1 h de route": an irregular outline, like an isochrone
+  const rings = [10, 20, 30, 40].map(km => add('circle', { class: 'ring', cx: 0, cy: 0, r: km * KM }))
   const pts = []
   for (let k = 0; k < 90; k++) {
     const a = (k / 90) * Math.PI * 2
@@ -434,57 +429,88 @@ function zone() {
     pts.push([Math.cos(a) * km * KM, Math.sin(a) * km * KM])
   }
   const blob = add('path', { class: 'blob', d: 'M' + pts.map(p => p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join('L') + 'Z' })
-  const top = pts.reduce((m, p) => (p[1] < m[1] ? p : m))
-  const blobLabel = add('text', { class: 'blob-label', x: top[0].toFixed(2), y: (top[1] - 2.5).toFixed(2), 'text-anchor': 'middle' })
-  blobLabel.textContent = '≈ 1 h de route'
+
+  const makePin = (name, x, y, h, home = false) => {
+    const pin = document.createElement('div')
+    pin.className = 'pin' + (home ? ' pin--home' : '')
+    pin.style.left = (x + 100) / 2 + '%'
+    pin.style.top = (y + 100) / 2 + '%'
+    pin.innerHTML = `<span class="pin-dot"></span><div class="pin-b" style="--h:calc(var(--u) * ${h})"><span class="pin-label">${name}</span><span class="pin-stem"></span></div>`
+    pinsBox.appendChild(pin)
+    return { b: $('.pin-b', pin), stem: $('.pin-stem', pin), label: $('.pin-label', pin), dot: $('.pin-dot', pin) }
+  }
 
   const towns = TOWNS.map(([name, lat, lon]) => {
     const x = (lon - HOME[1]) * kx * KM, y = -(lat - HOME[0]) * ky * KM
-    const g = add('g', { class: 'town' })
-    const ray = add('line', { class: 'ray', x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2) }, g)
-    const dot = add('circle', { class: 'dot', cx: x.toFixed(2), cy: y.toFixed(2), r: 1.3 }, g)
-    const right = x < 50
-    const label = add('text', { class: 'town-label', x: (x + (right ? 2.8 : -2.8)).toFixed(2), y: (y + 1.4).toFixed(2), 'text-anchor': right ? 'start' : 'end' }, g)
-    label.textContent = name
+    const ray = add('line', { class: 'ray', x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2) })
     const li = document.createElement('li')
     li.textContent = name
     list.appendChild(li)
-    return { dist: Math.hypot(x, y), ray, dot, label, li }
+    return { name, x, y, dist: Math.hypot(x, y), ray }
   })
-
+  // alternate pin heights by horizontal order so neighbouring labels never collide
+  towns.slice().sort((a, b) => a.x - b.x).forEach((t, i) => { Object.assign(t, makePin(t.name, t.x, t.y, i % 2 ? 150 : 82)) })
   add('circle', { class: 'home-pulse', cx: 0, cy: 0, r: 2.4 })
   add('circle', { class: 'home', cx: 0, cy: 0, r: 2.4 })
-  const home = add('text', { class: 'home-label', x: 3.6, y: 7 })
-  home.textContent = 'La Ferté-Milon'
+  const home = makePin('La Ferté-Milon', 0, 0, desktopMQ.matches ? 230 : 150, true)
 
-  if (reduce) { gsap.set(towns.map(t => t.li), { opacity: 1 }); return }
+  const boards = [home.b, ...towns.map(t => t.b)]
+  gsap.set(boards, { xPercent: -50 })
+  const state = { tilt: 0, spin: 0, scale: 1.9, min: 0 }
+  const render = () => {
+    gsap.set('.zone-tilt', { rotationX: state.tilt, scale: state.scale })
+    gsap.set('.zone-plate', { rotation: state.spin })
+    gsap.set(boards, { rotation: -state.spin, rotationX: -state.tilt }) // billboards face the camera
+    num.textContent = String(Math.round(state.min)).padStart(2, '0')
+  }
 
-  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-  rings.forEach(({ c, t }, i) => {
-    const L = c.getTotalLength()
-    tl.fromTo(c, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.5, ease: 'power1.inOut' }, i * 0.1)
-      .fromTo(t, { opacity: 0 }, { opacity: 1, duration: 0.2 }, i * 0.1 + 0.3)
+  // Label solver: put the camera in its final position, then give every pin the
+  // shortest stem whose label clears the labels already placed (screen space).
+  Object.assign(state, { tilt: 56, spin: -46, scale: 1, min: 60 })
+  render()
+  const placed = [home.label.getBoundingClientRect()]
+  const hit = (r, o) => !(r.right + 8 < o.left || r.left - 8 > o.right || r.bottom + 6 < o.top || r.top - 6 > o.bottom)
+  towns.slice().sort((a, b) => a.dist - b.dist).forEach(t => {
+    let rect
+    for (const h of desktopMQ.matches ? [70, 110, 150, 190, 230, 270] : [40, 64, 88, 112, 136]) {
+      t.b.style.setProperty('--h', `calc(var(--u) * ${h})`)
+      rect = t.label.getBoundingClientRect()
+      if (!placed.some(o => hit(rect, o))) break
+    }
+    placed.push(rect)
+  })
+  if (reduce) return
+  Object.assign(state, { tilt: 0, spin: 0, scale: 1.9, min: 0 })
+  render()
+
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' }, onUpdate: render })
+  tl.to(state, { scale: 1, tilt: 56, duration: 1.1, ease: 'power2.inOut' }, 0)
+    .to(state, { spin: -14, duration: 1.1, ease: 'power1.inOut' }, 0)
+    .to(state, { spin: -46, duration: 2, ease: 'none' }, 1.1)
+    .to(state, { min: 60, duration: 1.5, ease: 'power1.inOut' }, 0)
+  rings.forEach((r, i) => {
+    const L = r.getTotalLength()
+    tl.fromTo(r, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.55, ease: 'power1.inOut' }, 0.15 + i * 0.18)
   })
   const BL = blob.getTotalLength()
-  tl.fromTo(blob, { strokeDasharray: BL, strokeDashoffset: BL, fillOpacity: 0 }, { strokeDashoffset: 0, duration: 0.8, ease: 'power1.inOut' }, 0.25)
-    .to(blob, { fillOpacity: 0.1, duration: 0.3 }, 0.95)
-    .fromTo(blobLabel, { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1)
+  tl.fromTo(blob, { strokeDasharray: BL, strokeDashoffset: BL, fillOpacity: 0 }, { strokeDashoffset: 0, duration: 0.8, ease: 'power1.inOut' }, 0.7)
+    .to(blob, { fillOpacity: 0.14, duration: 0.4 }, 1.35)
+    .fromTo(home.stem, { scaleY: 0 }, { scaleY: 1, duration: 0.3, ease: 'back.out(2)' }, 0.25)
+    .fromTo(home.label, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.25 }, 0.4)
   towns.slice().sort((a, b) => a.dist - b.dist).forEach((t, i) => {
-    const at = 0.7 + i * 0.16
+    const at = 1.2 + i * 0.14
     const L = t.ray.getTotalLength()
     tl.fromTo(t.ray, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.25 }, at)
-      .fromTo(t.dot, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.15, ease: 'back.out(3)' }, at + 0.2)
-      .fromTo(t.label, { opacity: 0, x: -3 }, { opacity: 1, x: 0, duration: 0.2 }, at + 0.24)
-      .fromTo(t.li, { opacity: 0.28 }, { opacity: 1, duration: 0.15 }, at + 0.22)
+      .fromTo(t.dot, { scale: 0 }, { scale: 1, duration: 0.15, ease: 'back.out(3)' }, at + 0.18)
+      .fromTo(t.stem, { scaleY: 0 }, { scaleY: 1, duration: 0.3, ease: 'back.out(1.6)' }, at + 0.2)
+      .fromTo(t.label, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.22 }, at + 0.32)
   })
-  tl.to({}, { duration: 0.3 })
+  tl.to({}, { duration: 0.35 })
+  render()
 
   ScrollTrigger.create({
-    animation: tl,
-    scrub: 0.8,
-    ...(desktopMQ.matches
-      ? { trigger: '.zone', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 1.6), pin: true, refreshPriority: 3, invalidateOnRefresh: true }
-      : { trigger: '.zone-map', start: 'top 85%', end: 'bottom 35%' }),
+    animation: tl, trigger: '.zone', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 2.3),
+    pin: true, scrub: 1, refreshPriority: 3, invalidateOnRefresh: true,
   })
 }
 
