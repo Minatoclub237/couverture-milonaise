@@ -180,8 +180,9 @@ function reveal(el, type) {
     case 'card': {
       const media = $('.card-media', el)
       tl.fromTo(media, { clipPath: 'inset(0% 0% 100% 0%)', y: 120 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, ease: 'power2.out' })
-        .fromTo($$('.slide', el), { scale: 1.3, transformOrigin: '50% 0%' }, { scale: 1, duration: 1, ease: 'power2.out' }, 0)
         .fromTo($('.card-cap', el), { opacity: 0, y: 12 * U }, { opacity: 1, y: 0, duration: 0.5 }, 0.55)
+      const slides = $$('.slide', el)
+      if (slides.length) tl.fromTo(slides, { scale: 1.3, transformOrigin: '50% 0%' }, { scale: 1, duration: 1, ease: 'power2.out' }, 0)
       break
     }
     case 'steps': {
@@ -212,7 +213,7 @@ function parallax() {
     yPercent: 4, ease: 'none',
     scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: true },
   })
-  gsap.fromTo('.footer-inner', { yPercent: -32 }, {
+  gsap.fromTo('.footer-inner', { yPercent: -18 }, {
     yPercent: 0, ease: 'none',
     scrollTrigger: { trigger: '.footer', start: 'top bottom', end: 'bottom bottom', scrub: true },
   })
@@ -234,7 +235,7 @@ function hero() {
       end: () => '+=' + Math.round(window.innerHeight * 1.1),
       pin: true,
       scrub: 0.8,
-      refreshPriority: 3,
+      refreshPriority: 5,
       invalidateOnRefresh: true,
     },
   })
@@ -271,7 +272,7 @@ function servicesStrip() {
       end: () => '+=' + dist(),
       pin: true,
       scrub: 0.8,
-      refreshPriority: 2,
+      refreshPriority: 4,
       invalidateOnRefresh: true,
     },
   })
@@ -301,7 +302,7 @@ function quoteFill() {
     stagger: 0.12,
     duration: 0.25,
     scrollTrigger: desktopMQ.matches
-      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 1, invalidateOnRefresh: true }
+      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 2, invalidateOnRefresh: true }
       : { trigger: '.quote', start: 'top 70%', end: 'bottom 45%', scrub: 0.6 },
   })
 }
@@ -313,6 +314,8 @@ function cards() {
     const panel = $('.card-panel', card)
     const slides = $$('.slide', card)
     const idx = $('.pager-i', card)
+    if (!slides.length) return
+    $('.pager-n', card).textContent = slides.length
     let i = 0, busy = false
 
     if (desktopMQ.matches && !reduce) gsap.set(panel, { yPercent: 101 })
@@ -340,6 +343,137 @@ function cards() {
   })
 }
 
+/* ---------- pourquoi nous: rolling counter + active row ---------- */
+function why() {
+  if (desktopMQ.matches) {
+    const tl = gsap.timeline()
+    tl.to({}, { duration: 1 }, 0)
+      .fromTo('.why-bar i', { scaleX: 0 }, { scaleX: 1, duration: 1, ease: 'none' }, 0)
+    for (let k = 1; k < 5; k++) tl.to('.why-strip', { yPercent: -20 * k, duration: 0.07, ease: 'power2.inOut' }, k * 0.2 - 0.035)
+    ScrollTrigger.create({ trigger: '.why-list', start: 'top 50%', end: 'bottom 50%', scrub: 0.6, animation: tl })
+  }
+  // Each reason lights up while it crosses the middle of the screen, then dims again.
+  $$('.why-row').forEach(row => {
+    const tl = gsap.timeline()
+    tl.fromTo(row, { opacity: 0.2 }, { opacity: 1, duration: 0.25, ease: 'none' })
+      .fromTo($('h3', row), { yPercent: 40 }, { yPercent: 0, duration: 0.25, ease: 'power2.out' }, 0)
+      .to(row, { opacity: 1, duration: 0.5 })
+      .to(row, { opacity: 0.2, duration: 0.25, ease: 'none' })
+    ScrollTrigger.create({ trigger: row, start: 'top 78%', end: 'bottom 22%', scrub: 0.6, animation: tl })
+  })
+}
+
+/* ---------- zone: map drawn by the scroll ---------- */
+const HOME = [49.1788, 3.1289]
+// Order and names as on the client's previous site
+const TOWNS = [
+  ['Compiègne', 49.4179, 2.8261], ['Soissons', 49.3817, 3.3236], ['Fère-en-Tardenois', 49.2, 3.5167],
+  ['Château-Thierry', 49.0464, 3.4031], ['Crépy-en-Valois', 49.2344, 2.8889], ['Villers-Cotterêts', 49.2533, 3.0906],
+  ['La Ferté-sous-Jouarre', 48.95, 3.1278], ['Braine', 49.3428, 3.5328], ['Charly-sur-Marne', 48.9775, 3.2842],
+  ['Meaux', 48.9606, 2.8786], ['Ermenonville', 49.1269, 2.6953],
+]
+const KM = 100 / 46 // svg units per kilometre
+
+function zone() {
+  const svg = $('.map'), list = $('.zone-towns')
+  const NS = 'http://www.w3.org/2000/svg'
+  const add = (tag, attrs, parent = svg) => {
+    const e = document.createElementNS(NS, tag)
+    for (const k in attrs) e.setAttribute(k, attrs[k])
+    parent.appendChild(e)
+    return e
+  }
+  const kx = 111.32 * Math.cos(HOME[0] * Math.PI / 180), ky = 110.57
+
+  const rings = [10, 20, 30, 40].map(km => {
+    const r = km * KM
+    const c = add('circle', { class: 'ring', cx: 0, cy: 0, r })
+    const t = add('text', { class: 'ring-label', x: (r * 0.72).toFixed(2), y: (-r * 0.69).toFixed(2) })
+    t.textContent = km + ' km'
+    return { c, t }
+  })
+
+  // "≈ 1 h de route": an irregular outline, like an isochrone
+  const pts = []
+  for (let k = 0; k < 90; k++) {
+    const a = (k / 90) * Math.PI * 2
+    const km = 40 + 3.2 * Math.sin(3 * a + 0.6) + 2.2 * Math.sin(5 * a + 1.3) + 1.2 * Math.sin(8 * a + 2)
+    pts.push([Math.cos(a) * km * KM, Math.sin(a) * km * KM])
+  }
+  const blob = add('path', { class: 'blob', d: 'M' + pts.map(p => p[0].toFixed(2) + ' ' + p[1].toFixed(2)).join('L') + 'Z' })
+  const top = pts.reduce((m, p) => (p[1] < m[1] ? p : m))
+  const blobLabel = add('text', { class: 'blob-label', x: top[0].toFixed(2), y: (top[1] - 2.5).toFixed(2), 'text-anchor': 'middle' })
+  blobLabel.textContent = '≈ 1 h de route'
+
+  const towns = TOWNS.map(([name, lat, lon]) => {
+    const x = (lon - HOME[1]) * kx * KM, y = -(lat - HOME[0]) * ky * KM
+    const g = add('g', { class: 'town' })
+    const ray = add('line', { class: 'ray', x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2) }, g)
+    const dot = add('circle', { class: 'dot', cx: x.toFixed(2), cy: y.toFixed(2), r: 1.3 }, g)
+    const right = x < 50
+    const label = add('text', { class: 'town-label', x: (x + (right ? 2.8 : -2.8)).toFixed(2), y: (y + 1.4).toFixed(2), 'text-anchor': right ? 'start' : 'end' }, g)
+    label.textContent = name
+    const li = document.createElement('li')
+    li.textContent = name
+    list.appendChild(li)
+    return { dist: Math.hypot(x, y), ray, dot, label, li }
+  })
+
+  add('circle', { class: 'home-pulse', cx: 0, cy: 0, r: 2.4 })
+  add('circle', { class: 'home', cx: 0, cy: 0, r: 2.4 })
+  const home = add('text', { class: 'home-label', x: 3.6, y: 7 })
+  home.textContent = 'La Ferté-Milon'
+
+  if (reduce) { gsap.set(towns.map(t => t.li), { opacity: 1 }); return }
+
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  rings.forEach(({ c, t }, i) => {
+    const L = c.getTotalLength()
+    tl.fromTo(c, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.5, ease: 'power1.inOut' }, i * 0.1)
+      .fromTo(t, { opacity: 0 }, { opacity: 1, duration: 0.2 }, i * 0.1 + 0.3)
+  })
+  const BL = blob.getTotalLength()
+  tl.fromTo(blob, { strokeDasharray: BL, strokeDashoffset: BL, fillOpacity: 0 }, { strokeDashoffset: 0, duration: 0.8, ease: 'power1.inOut' }, 0.25)
+    .to(blob, { fillOpacity: 0.1, duration: 0.3 }, 0.95)
+    .fromTo(blobLabel, { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1)
+  towns.slice().sort((a, b) => a.dist - b.dist).forEach((t, i) => {
+    const at = 0.7 + i * 0.16
+    const L = t.ray.getTotalLength()
+    tl.fromTo(t.ray, { strokeDasharray: L, strokeDashoffset: L }, { strokeDashoffset: 0, duration: 0.25 }, at)
+      .fromTo(t.dot, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.15, ease: 'back.out(3)' }, at + 0.2)
+      .fromTo(t.label, { opacity: 0, x: -3 }, { opacity: 1, x: 0, duration: 0.2 }, at + 0.24)
+      .fromTo(t.li, { opacity: 0.28 }, { opacity: 1, duration: 0.15 }, at + 0.22)
+  })
+  tl.to({}, { duration: 0.3 })
+
+  ScrollTrigger.create({
+    animation: tl,
+    scrub: 0.8,
+    ...(desktopMQ.matches
+      ? { trigger: '.zone', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 1.6), pin: true, refreshPriority: 3, invalidateOnRefresh: true }
+      : { trigger: '.zone-map', start: 'top 85%', end: 'bottom 35%' }),
+  })
+}
+
+/* ---------- de A à Z: cards stack and tilt back in depth ---------- */
+function azStack() {
+  const cards = $$('.az-card')
+  const stickTop = i => (desktopMQ.matches ? (150 + i * 26) * U : 72 + i * 14)
+  cards.forEach((card, i) => {
+    gsap.fromTo(card, { y: 90 * U, opacity: 0.3 }, {
+      y: 0, opacity: 1, ease: 'power2.out',
+      scrollTrigger: { trigger: card, start: 'top bottom', end: 'top 68%', scrub: 0.6 },
+    })
+    const next = cards[i + 1]
+    if (!next) return
+    // explicit start values: GSAP reads filter "none" as brightness(0)
+    gsap.fromTo(card, { scale: 1, rotateX: 0, filter: 'brightness(1)' }, {
+      scale: 0.9, rotateX: 7, filter: 'brightness(0.93)', ease: 'none', immediateRender: false,
+      scrollTrigger: { trigger: next, start: 'top bottom', end: () => `top ${Math.round(stickTop(i + 1))}px`, scrub: 0.6, invalidateOnRefresh: true },
+    })
+  })
+}
+
 /* ---------- smooth scroll ---------- */
 function smoothScroll() {
   const lenis = new Lenis({ lerp: 0.09, smoothWheel: true })
@@ -364,15 +498,19 @@ async function boot() {
 
   if (reduce) {
     root.classList.add('is-ready')
+    zone()
     cards()
     return
   }
 
   hero()
+  zone()
   $$('[data-split]').forEach(el => { if (!el.closest('.hero')) reveal(el, el.dataset.split) })
   $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
   servicesStrip()
   quoteFill()
+  why()
+  azStack()
   parallax()
   cards()
   smoothScroll()
