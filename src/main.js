@@ -64,8 +64,7 @@ function splitWords(el) {
 
 // Groups words into masked lines by their rendered position.
 function splitLines(el, wordClass = '') {
-  if (!el.dataset.text) el.dataset.text = el.textContent.trim().replace(/\s*\n\s*/g, ' ')
-  const parts = el.dataset.text.split(/[ \t\n]+/)
+  const parts = el.textContent.trim().replace(/\s*\n\s*/g, ' ').split(/[ \t\n]+/)
   el.textContent = ''
   const words = parts.map((p, i) => {
     const s = document.createElement('span')
@@ -83,7 +82,7 @@ function splitLines(el, wordClass = '') {
     rows.at(-1).push(w)
   })
   el.textContent = ''
-  const lines = rows.map(row => {
+  return rows.map(row => {
     const mask = document.createElement('span')
     mask.className = 'line-mask'
     const inner = document.createElement('span')
@@ -96,156 +95,161 @@ function splitLines(el, wordClass = '') {
     el.appendChild(mask)
     return inner
   })
-  return { lines, words }
 }
 
-/* ---------- reveal registry ---------- */
-// Each entry: { el, type, parts, done }
-const reveals = []
+/* ---------- scroll-scrubbed reveals ----------
+   Every reveal is tied to the scroll position: it builds while scrolling down
+   and un-builds the same way while scrolling back up. */
+const RANGE = {
+  chars: ['top 88%', 'top 38%'],
+  words: ['top 92%', 'top 48%'],
+  lines: ['top 94%', 'top 52%'],
+  'fade-lines': ['top 96%', 'top 62%'],
+  'stagger-fade': ['top 97%', 'top 64%'],
+  'lines-list': ['top 97%', 'top 58%'],
+  img: ['top 98%', 'top 40%'],
+  rule: ['top 96%', 'top 62%'],
+  btn: ['top 96%', 'top 68%'],
+  avatar: ['top 96%', 'top 62%'],
+  thumbs: ['top 99%', 'top 66%'],
+  track: ['top 100%', 'top 56%'],
+  card: ['top 99%', 'top 46%'],
+  steps: ['top 92%', 'top 8%'],
+}
 
-function prepare(el, type) {
-  const r = { el, type, parts: null, done: false }
+// Elements whose own box is clipped, scaled or shifted are measured through their parent.
+const VIA_PARENT = ['img', 'btn', 'rule', 'avatar']
+
+function reveal(el, type) {
+  const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
   switch (type) {
-    case 'chars':
-      r.parts = splitChars(el)
-      gsap.set(r.parts, { yPercent: 110 })
+    case 'chars': {
+      const p = splitChars(el)
+      tl.fromTo(p, { yPercent: 110 }, { yPercent: 0, duration: 1, stagger: 0.09 })
       break
-    case 'words':
-      r.parts = splitWords(el)
-      gsap.set(r.parts, { yPercent: 118 })
+    }
+    case 'words': {
+      const p = splitWords(el)
+      tl.fromTo(p, { yPercent: 118 }, { yPercent: 0, duration: 1, stagger: 0.08 })
       break
-    case 'lines':
-      r.parts = splitLines(el, el.hasAttribute('data-fill') ? 'wd-fill' : '').lines
-      gsap.set(r.parts, { yPercent: 118 })
+    }
+    case 'lines': {
+      const p = splitLines(el, el.hasAttribute('data-fill') ? 'wd-fill' : '')
+      tl.fromTo(p, { yPercent: 118 }, { yPercent: 0, duration: 1, stagger: 0.12 })
       break
-    case 'fade-lines':
-      r.parts = splitLines(el).lines
-      gsap.set(r.parts, { opacity: 0 })
+    }
+    case 'fade-lines': {
+      const p = splitLines(el)
+      tl.fromTo(p, { opacity: 0, yPercent: 30 }, { opacity: 1, yPercent: 0, duration: 1, stagger: 0.14, ease: 'power2.out' })
       break
+    }
     case 'stagger-fade':
-      r.parts = [...el.children]
-      gsap.set(r.parts, { opacity: 0, y: 6 })
+      tl.fromTo([...el.children], { opacity: 0, y: 10 * U }, { opacity: 1, y: 0, duration: 1, stagger: 0.12, ease: 'power2.out' })
       break
-    case 'lines-list':
-      r.parts = [...el.children].map(li => {
+    case 'lines-list': {
+      const p = [...el.children].map(li => {
         li.innerHTML = `<span class="line-mask"><span class="line-inner">${li.innerHTML}</span></span>`
         return $('.line-inner', li)
       })
-      gsap.set(r.parts, { yPercent: 118 })
+      tl.fromTo(p, { yPercent: 118 }, { yPercent: 0, duration: 1, stagger: 0.1 })
       break
+    }
     case 'img':
-      gsap.set(el, { clipPath: 'inset(100% 0% 0% 0%)', y: 90 * U })
-      gsap.set($('img', el), { scale: 1.25, transformOrigin: '50% 100%' })
+      tl.fromTo(el, { clipPath: 'inset(100% 0% 0% 0%)', y: 110 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, ease: 'power2.out' })
+        .fromTo($('img', el), { scale: 1.4, transformOrigin: '50% 100%' }, { scale: 1.12, duration: 1, ease: 'power2.out' }, 0)
       break
     case 'rule':
-      gsap.set(el, { scaleX: 0 })
+      tl.fromTo(el, { scaleX: 0 }, { scaleX: 1, duration: 1, ease: 'power2.inOut' })
       break
     case 'btn':
-      gsap.set(el, { clipPath: 'inset(0% 50% 0% 50%)' })
+      tl.fromTo(el, { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1, ease: 'power2.inOut' })
       break
     case 'avatar':
-      gsap.set(el, { scale: 0 })
+      tl.fromTo(el, { scale: 0, rotate: -25 }, { scale: 1, rotate: 0, duration: 1 })
       break
     case 'thumbs':
-      r.parts = [...el.children]
-      gsap.set(r.parts, { clipPath: 'inset(0% 0% 100% 0%)' })
+      tl.fromTo([...el.children], { clipPath: 'inset(0% 0% 100% 0%)', y: 30 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, stagger: 0.15, ease: 'power2.inOut' })
       break
     case 'track':
-      r.parts = [...el.children]
-      gsap.set(r.parts, { y: 70 * U })
-      gsap.set(r.parts.map(p => p.querySelector('.t-fig') || p), { clipPath: 'inset(0% 0% 100% 0%)' })
-      break
-    case 'card':
-      r.parts = [$('.card-media', el), $('.card-cap', el)]
-      gsap.set(r.parts[0], { clipPath: 'inset(0% 0% 100% 0%)', y: 80 * U })
-      gsap.set($$('.slide', el), { scale: 1.2, transformOrigin: '50% 0%' })
-      gsap.set(r.parts[1], { opacity: 0 })
-      break
-    case 'steps':
-      r.parts = ['.step-a', '.step-b', '.step-c'].map(s => $(s, el))
-      gsap.set(r.parts, { clipPath: 'inset(100% 0% 0% 0%)', y: 140 * U })
-      gsap.set(r.parts.map(p => $('.win-inner', p)), { scale: 1.18, transformOrigin: '50% 100%' })
-      break
-  }
-  reveals.push(r)
-  return r
-}
-
-function play(r) {
-  if (r.done) return
-  r.done = true
-  const { el, type, parts } = r
-  const E = 'expo.out'
-  switch (type) {
-    case 'chars':
-      gsap.to(parts, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.075 })
-      break
-    case 'words':
-      gsap.to(parts, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.07 })
-      break
-    case 'lines':
-      gsap.to(parts, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.09 })
-      break
-    case 'fade-lines':
-      gsap.to(parts, { opacity: 1, duration: 0.9, ease: 'power2.out', stagger: 0.09, delay: 0.15 })
-      break
-    case 'stagger-fade':
-      gsap.to(parts, { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out', stagger: 0.08, delay: 0.1 })
-      break
-    case 'lines-list':
-      gsap.to(parts, { yPercent: 0, duration: 1, ease: 'power4.out', stagger: 0.07 })
-      break
-    case 'img':
-      gsap.to(el, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1.5, ease: E })
-      gsap.to($('img', el), { scale: 1, duration: 1.8, ease: E })
-      break
-    case 'rule':
-      gsap.to(el, { scaleX: 1, duration: 1.4, ease: 'power3.inOut' })
-      break
-    case 'btn':
-      gsap.to(el, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1, ease: 'power3.inOut', delay: 0.2, clearProps: 'clipPath' })
-      break
-    case 'avatar':
-      gsap.to(el, { scale: 1, duration: 1, ease: 'power3.out' })
-      break
-    case 'thumbs':
-      gsap.to(parts, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.1, ease: 'power3.inOut', stagger: 0.1, delay: 0.2 })
-      break
-    case 'track':
-      parts.forEach((p, i) => {
+      ;[...el.children].forEach((p, i) => {
         const fig = p.querySelector('.t-fig') || p
-        gsap.to(p, { y: 0, duration: 1.3, ease: E, delay: i * 0.07 })
-        gsap.to(fig, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.3, ease: E, delay: i * 0.07, clearProps: 'clipPath' })
+        tl.fromTo(p, { y: 90 * U }, { y: 0, duration: 1 }, i * 0.08)
+          .fromTo(fig, { clipPath: 'inset(0% 0% 100% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1 }, i * 0.08)
       })
       break
     case 'card': {
-      const i = $$('.card').indexOf(el)
-      gsap.to(parts[0], { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1.4, ease: E, delay: i * 0.12, clearProps: 'clipPath' })
-      gsap.to($$('.slide', el), { scale: 1, duration: 1.8, ease: E, delay: i * 0.12 })
-      gsap.to(parts[1], { opacity: 1, duration: 0.8, delay: 0.5 + i * 0.12 })
+      const media = $('.card-media', el)
+      tl.fromTo(media, { clipPath: 'inset(0% 0% 100% 0%)', y: 120 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, ease: 'power2.out' })
+        .fromTo($$('.slide', el), { scale: 1.3, transformOrigin: '50% 0%' }, { scale: 1, duration: 1, ease: 'power2.out' }, 0)
+        .fromTo($('.card-cap', el), { opacity: 0, y: 12 * U }, { opacity: 1, y: 0, duration: 0.5 }, 0.55)
       break
     }
-    case 'steps':
-      gsap.to(parts, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1.6, ease: E, stagger: 0.16 })
-      gsap.to(parts.map(p => $('.win-inner', p)), { scale: 1, duration: 2, ease: E, stagger: 0.16 })
+    case 'steps': {
+      const wins = ['.step-a', '.step-b', '.step-c'].map(s => $(s, el))
+      tl.fromTo(wins, { clipPath: 'inset(100% 0% 0% 0%)', y: 160 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, stagger: 0.22, ease: 'power2.out' })
+        .fromTo(wins.map(w => $('.win-inner', w)), { scale: 1.3, transformOrigin: '50% 100%' }, { scale: 1.08, duration: 1.44, ease: 'power2.out' }, 0)
       break
+    }
   }
+  const [start, end] = RANGE[type]
+  ScrollTrigger.create({
+    trigger: VIA_PARENT.includes(type) ? el.parentElement : el,
+    start, end,
+    scrub: 0.8,
+    animation: tl,
+  })
 }
 
-/* ---------- hero intro ---------- */
-function intro(heroChars, heroLines) {
-  const tl = gsap.timeline({ delay: 0.1 })
+/* Gentle depth: large photos drift inside their frames for the whole time they are on screen. */
+function parallax() {
+  $$('.intro-img img').forEach(img => {
+    gsap.fromTo(img, { yPercent: -5 }, {
+      yPercent: 5, ease: 'none',
+      scrollTrigger: { trigger: img.parentElement.parentElement, start: 'top bottom', end: 'bottom top', scrub: true },
+    })
+  })
+  gsap.fromTo('.about .win-inner img', { yPercent: -4 }, {
+    yPercent: 4, ease: 'none',
+    scrollTrigger: { trigger: '.about', start: 'top bottom', end: 'bottom top', scrub: true },
+  })
+  gsap.fromTo('.footer-inner', { yPercent: -32 }, {
+    yPercent: 0, ease: 'none',
+    scrollTrigger: { trigger: '.footer', start: 'top bottom', end: 'bottom bottom', scrub: true },
+  })
+}
+
+/* ---------- hero: built by the scroll, pinned until complete ---------- */
+let heroTrigger = null
+function hero() {
+  const chars = splitChars($('.hero-title'))
+  const lines = splitLines($('.hero-text'))
   const winA = $('.hero .win-a'), winB = $('.hero .win-b')
-  tl.fromTo(winA, { clipPath: 'inset(0% 0% 100% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.6, ease: 'power2.out' }, 0)
-    .fromTo($('.win-inner', winA), { yPercent: -16 }, { yPercent: 0, duration: 1.8, ease: 'power2.out' }, 0)
-    .fromTo(winB, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.6, ease: 'power2.out' }, 0.12)
-    .fromTo($('.win-inner', winB), { yPercent: 12 }, { yPercent: 0, duration: 1.8, ease: 'power2.out' }, 0.12)
-    .fromTo(['.nav .logo-mark', ...$$('.nav .logo-w'), ...$$('.nav-links li'), '.nav-contact'],
-      { opacity: 0 }, { opacity: 1, duration: 0.7, ease: 'power1.out', stagger: 0.1 }, 0.1)
-    .to(heroChars, { yPercent: 0, duration: 1.15, ease: 'power4.out', stagger: 0.085 }, 0.15)
-    .fromTo(['.hero-label', '.hero-loc'], { opacity: 0 }, { opacity: 1, duration: 0.9, stagger: 0.12 }, 0.45)
-    .to(heroLines, { yPercent: 0, duration: 1.1, ease: 'power4.out', stagger: 0.1 }, 0.7)
-    .fromTo('.hero-btn', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.9, ease: 'power3.inOut', clearProps: 'clipPath' }, 0.95)
+  const navItems = ['.nav .logo-mark', ...$$('.nav .logo-w'), ...$$('.nav-links li'), '.nav-contact']
+
+  const tl = gsap.timeline({
+    defaults: { ease: 'power2.out' },
+    scrollTrigger: {
+      trigger: '.hero',
+      start: 'top top',
+      end: () => '+=' + Math.round(window.innerHeight * 1.1),
+      pin: true,
+      scrub: 0.8,
+      refreshPriority: 3,
+      invalidateOnRefresh: true,
+    },
+  })
+  tl.to('.scroll-hint', { opacity: 0, y: 12, duration: 0.18, ease: 'none' }, 0)
+    .fromTo(winA, { clipPath: 'inset(0% 0% 97% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.4 }, 0)
+    .fromTo($('.win-inner', winA), { yPercent: -16 }, { yPercent: 0, duration: 1.5 }, 0)
+    .fromTo(winB, { clipPath: 'inset(100% 0% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 1.35 }, 0.1)
+    .fromTo($('.win-inner', winB), { yPercent: 12 }, { yPercent: 0, duration: 1.5 }, 0.1)
+    .fromTo(navItems, { opacity: 0 }, { opacity: 1, duration: 0.45, stagger: 0.08, ease: 'none' }, 0.05)
+    .fromTo(chars, { yPercent: 110 }, { yPercent: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out' }, 0.12)
+    .fromTo(['.hero-label', '.hero-loc'], { opacity: 0 }, { opacity: 1, duration: 0.5, stagger: 0.1, ease: 'none' }, 0.4)
+    .fromTo(lines, { yPercent: 118 }, { yPercent: 0, duration: 0.8, stagger: 0.09, ease: 'power3.out' }, 0.6)
+    .fromTo('.hero-btn', { clipPath: 'inset(0% 50% 0% 50%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.6, ease: 'power2.inOut' }, 0.85)
+    .to({}, { duration: 0.2 })
+  heroTrigger = tl.scrollTrigger
 }
 
 /* ---------- services: pinned horizontal strip ---------- */
@@ -267,6 +271,7 @@ function servicesStrip() {
       end: () => '+=' + dist(),
       pin: true,
       scrub: 0.8,
+      refreshPriority: 2,
       invalidateOnRefresh: true,
     },
   })
@@ -288,20 +293,15 @@ function servicesStrip() {
 }
 
 /* ---------- testimonial: scroll fills the quote word by word ---------- */
-let fillTrigger = null
 function quoteFill() {
-  fillTrigger?.scrollTrigger?.kill()
-  fillTrigger?.kill()
   const words = $$('.quote .wd-fill')
-  gsap.set(words, { color: '#a2a2a2' })
-  const desk = desktopMQ.matches
-  fillTrigger = gsap.to(words, {
+  gsap.fromTo(words, { color: '#a2a2a2' }, {
     color: '#0b0b0b',
     ease: 'none',
     stagger: 0.12,
     duration: 0.25,
-    scrollTrigger: desk
-      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, invalidateOnRefresh: true }
+    scrollTrigger: desktopMQ.matches
+      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 1, invalidateOnRefresh: true }
       : { trigger: '.quote', start: 'top 70%', end: 'bottom 45%', scrub: 0.6 },
   })
 }
@@ -354,6 +354,8 @@ function smoothScroll() {
     e.preventDefault()
     lenis.scrollTo(target, { duration: 1.6 })
   }))
+  // "Faites défiler" plays the whole hero build, then stops where the hero is complete
+  $('.scroll-hint').addEventListener('click', () => lenis.scrollTo(heroTrigger ? heroTrigger.end : window.innerHeight, { duration: 2.4 }))
 }
 
 /* ---------- boot ---------- */
@@ -366,61 +368,21 @@ async function boot() {
     return
   }
 
-  const hero = $('.hero')
-  const heroTitle = prepare($('.hero-title'), 'chars')
-  const heroText = prepare($('.hero-text'), 'lines')
-  heroTitle.done = heroText.done = true
-
-  $$('[data-split]').forEach(el => { if (!hero.contains(el)) prepare(el, el.dataset.split) })
-  $$('[data-reveal]').forEach(el => prepare(el, el.dataset.reveal))
+  hero()
+  $$('[data-split]').forEach(el => { if (!el.closest('.hero')) reveal(el, el.dataset.split) })
+  $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
+  servicesStrip()
+  quoteFill()
+  parallax()
+  cards()
+  smoothScroll()
 
   root.classList.add('is-ready')
-  intro(heroTitle.parts, heroText.parts)
+  ScrollTrigger.refresh()
 
-  // Elements hidden by their own clip-path / scale(0) never report an intersection,
-  // so those are watched through their parent.
-  const watched = new Map()
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(en => {
-      if (!en.isIntersecting) return
-      watched.get(en.target).forEach(play)
-      io.unobserve(en.target)
-    })
-  }, { threshold: 0.12 })
-  reveals.filter(r => !r.done).forEach(r => {
-    const target = ['img', 'btn', 'rule', 'avatar'].includes(r.type) ? r.el.parentElement : r.el
-    if (!watched.has(target)) { watched.set(target, []); io.observe(target) }
-    watched.get(target).push(r)
-  })
-
-  smoothScroll()
-  servicesStrip()
-  cards()
-  quoteFill()
-
-  gsap.fromTo('.footer-inner', { yPercent: -32 }, {
-    yPercent: 0, ease: 'none',
-    scrollTrigger: { trigger: '.footer', start: 'top bottom', end: 'bottom bottom', scrub: true },
-  })
-
-  // Re-measure line splits when the width changes (height-only changes are ignored).
-  let lastW = root.clientWidth, t
-  window.addEventListener('resize', () => {
-    if (root.clientWidth === lastW) return
-    lastW = root.clientWidth
-    setUnit()
-    clearTimeout(t)
-    t = setTimeout(() => {
-      reveals.filter(r => r.type === 'lines' || r.type === 'fade-lines').forEach(r => {
-        const fill = r.el.hasAttribute('data-fill')
-        r.parts = splitLines(r.el, fill ? 'wd-fill' : '').lines
-        if (r.type === 'lines') gsap.set(r.parts, { yPercent: r.done ? 0 : 118 })
-        else gsap.set(r.parts, { opacity: r.done ? 1 : 0 })
-      })
-      quoteFill()
-      ScrollTrigger.refresh()
-    }, 180)
-  })
+  // Desktop and mobile use different layouts: rebuild from scratch when crossing the breakpoint.
+  desktopMQ.addEventListener('change', () => location.reload())
+  window.addEventListener('resize', setUnit)
 }
 
 boot()
