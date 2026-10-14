@@ -116,6 +116,8 @@ const RANGE = {
   thumbs: ['top 99%', 'top 66%'],
   track: ['top 100%', 'top 56%'],
   card: ['top 99%', 'top 46%'],
+  tilt: ['top 100%', 'top 42%'],
+  chips: ['top 95%', 'top 62%'],
   steps: ['top 92%', 'top 8%'],
 }
 
@@ -187,6 +189,13 @@ function reveal(el, type) {
       if (slides.length) tl.fromTo(slides, { scale: 1.3, transformOrigin: '50% 0%' }, { scale: 1, duration: 1, ease: 'power2.out' }, 0)
       break
     }
+    case 'tilt':
+      tl.fromTo(el, { rotationX: 26, y: 160 * U, z: -240, opacity: 0, transformPerspective: 1400, transformOrigin: '50% 100%' },
+        { rotationX: 0, y: 0, z: 0, opacity: 1, duration: 1, ease: 'power2.out' })
+      break
+    case 'chips':
+      tl.fromTo([...el.children], { scale: 0.6, opacity: 0, y: 14 }, { scale: 1, opacity: 1, y: 0, duration: 0.5, stagger: 0.06, ease: 'back.out(2)' })
+      break
     case 'steps': {
       const wins = ['.step-a', '.step-b', '.step-c'].map(s => $(s, el))
       tl.fromTo(wins, { clipPath: 'inset(100% 0% 0% 0%)', y: 160 * U }, { clipPath: 'inset(0% 0% 0% 0%)', y: 0, duration: 1, stagger: 0.22, ease: 'power2.out' })
@@ -543,18 +552,115 @@ function servicesStrip() {
   })
 }
 
-/* ---------- testimonial: scroll fills the quote word by word ---------- */
-function quoteFill() {
-  const words = $$('.quote .wd-fill')
-  gsap.fromTo(words, { color: '#a2a2a2' }, {
-    color: '#0b0b0b',
-    ease: 'none',
-    stagger: 0.12,
-    duration: 0.25,
-    scrollTrigger: desktopMQ.matches
-      ? { trigger: '.review', start: () => `top+=${pinOffset(166, 905)} top`, end: () => '+=' + Math.round(window.innerHeight * 0.9), pin: true, scrub: 0.6, refreshPriority: 1, invalidateOnRefresh: true }
-      : { trigger: '.quote', start: 'top 70%', end: 'bottom 45%', scrub: 0.6 },
+/* ---------- avis: the Google score builds up, then each review is lifted from the pile,
+   read, flipped to the owner's reply and tossed away for the next one ---------- */
+function reviewsScene() {
+  const cards = $$('.rv-card').map((el, k) => ({ el, k, flip: $('.rv-flip', el) }))
+  const n = cards.length
+  const stars = $$('.rv-star'), num = $('.rv-num'), bar = $('.rv-bar i'), strip = $('.rv-idx .roll-strip')
+  const st = { score: 0, p: 0 }
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
+  const tilt = [-7, 5, -4, 8]
+  const ss = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t) }
+  const mix = (a, b, t) => { const r = {}; for (const key in a) r[key] = a[key] + (b[key] - a[key]) * t; return r }
+  let active = -1, near = false
+
+  const render = () => {
+    mouse.x += (mouse.tx - mouse.x) * 0.07
+    mouse.y += (mouse.ty - mouse.y) * 0.07
+    const desk = desktopMQ.matches, vh = window.innerHeight
+    num.textContent = (st.score * 5).toFixed(1).replace('.', ',')
+    stars.forEach((s, i) => {
+      const f = clamp01(st.score * 5 - i)
+      s.style.setProperty('--f', f.toFixed(3))
+      s.style.transform = `rotateY(${((1 - f) * 180).toFixed(1)}deg) scale(${(0.72 + 0.28 * f).toFixed(3)})`
+    })
+    const pile = k => desk
+      ? { x: 150 * HU + k * 16, y: 215 * HU - k * 12, z: -440 - k * 26, rx: 62, rz: tilt[k], s: 0.9, o: 1 }
+      : { x: k * 8, y: vh * 0.3 + k * 9, z: -300 - k * 60, rx: 64, rz: tilt[k] * 0.6, s: 0.86, o: 1 }
+    const read = { x: 0, y: 0, z: 40, rx: 0, rz: 0, s: 1, o: 1 }
+    const out = desk
+      ? { x: -160 * HU, y: -vh * 0.95, z: -260, rx: -28, rz: -16, s: 0.9, o: 0 }
+      : { x: -40, y: -vh * 0.9, z: -200, rx: -28, rz: -12, s: 0.9, o: 0 }
+    cards.forEach(c => {
+      const u = clamp01(st.p - c.k)
+      const lift = ss(0, 0.26, u), flip = ss(0.42, 0.64, u), gone = c.k < n - 1 ? ss(0.8, 1, u) : 0
+      const q = mix(mix(pile(c.k), read, lift), out, gone)
+      const m = lift * (1 - gone)
+      const arc = Math.sin(flip * Math.PI) * 120 // the card swings toward the camera while it turns
+      c.el.style.transform = `translate3d(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px, ${(q.z + arc).toFixed(1)}px) rotateX(${(q.rx - mouse.y * 6 * m).toFixed(2)}deg) rotateY(${(mouse.x * 8 * m).toFixed(2)}deg) rotateZ(${q.rz.toFixed(2)}deg) scale(${q.s.toFixed(4)})`
+      c.el.style.opacity = q.o.toFixed(3)
+      c.el.style.visibility = q.o < 0.01 ? 'hidden' : ''
+      c.flip.style.transform = `rotateY(${(180 * flip).toFixed(2)}deg)`
+    })
+    const idx = Math.max(0, Math.min(n - 1, Math.floor(st.p)))
+    if (idx !== active) {
+      active = idx
+      gsap.to(strip, { yPercent: -idx * 100 / n, duration: 0.6, ease: 'power3.out', overwrite: true })
+    }
+    bar.style.transform = `scaleX(${(st.p / n).toFixed(4)})`
+  }
+
+  const tl = gsap.timeline({ defaults: { ease: 'none' }, onUpdate: render })
+  tl.to(st, { score: 1, duration: 0.9, ease: 'power1.inOut' }, 0)
+    .to(st, { p: n, duration: n }, 0.7)
+    .to({}, { duration: 0.2 })
+  const pinST = ScrollTrigger.create({
+    animation: tl, trigger: '.reviews', start: 'top top', end: () => '+=' + Math.round(window.innerHeight * 3.6),
+    pin: true, scrub: 1, refreshPriority: 1, invalidateOnRefresh: true,
   })
+  ScrollTrigger.create({
+    start: () => pinST.start - window.innerHeight, end: () => pinST.end + window.innerHeight,
+    onToggle: self => { near = self.isActive },
+  })
+  render()
+  ScrollTrigger.addEventListener('refresh', render)
+  gsap.ticker.add(() => { if (near) render() })
+  if (desktopMQ.matches) {
+    $('.rv-stage').addEventListener('pointermove', ev => {
+      mouse.tx = (ev.clientX / window.innerWidth - 0.5) * 2
+      mouse.ty = (ev.clientY / window.innerHeight - 0.5) * 2
+    })
+  }
+}
+
+/* ---------- devis: the form opens the visitor's mail app with the request filled in ---------- */
+function devisForm() {
+  const form = $('.dv-form'), flip = $('.dv-flip'), front = $('.dv-front'), back = $('.dv-back'), err = $('.dv-error')
+  back.inert = true
+  // a "Devis gratuit" under a trade pre-selects it in the form
+  $$('a[data-trade]').forEach(a => a.addEventListener('click', () => {
+    const box = form.querySelector(`input[name="travaux"][value="${a.dataset.trade}"]`)
+    if (box) box.checked = true
+  }))
+  const turn = done => {
+    front.inert = done
+    back.inert = !done
+    gsap.to(flip, { rotationY: done ? 180 : 0, duration: 1.1, ease: 'power3.inOut' })
+  }
+  form.addEventListener('submit', e => {
+    e.preventDefault()
+    const f = new FormData(form)
+    const nom = String(f.get('nom') || '').trim(), tel = String(f.get('tel') || '').trim()
+    const commune = String(f.get('commune') || '').trim()
+    const missing = []
+    if (!nom) missing.push('votre nom')
+    if (tel.replace(/\D/g, '').length < 10) missing.push('un numéro de téléphone valide')
+    if (!f.get('rgpd')) missing.push('votre accord pour être recontacté')
+    if (missing.length) {
+      err.textContent = "Merci d'indiquer " + missing.join(', ') + '.'
+      return
+    }
+    err.textContent = ''
+    const body = [
+      `Nom : ${nom}`, `Téléphone : ${tel}`, `E-mail : ${f.get('email') || '-'}`, `Commune : ${commune || '-'}`,
+      `Travaux : ${f.getAll('travaux').join(', ') || 'non précisé'}`, '', String(f.get('message') || ''),
+    ].join('\n')
+    const subject = `Demande de devis - ${nom}${commune ? ' (' + commune + ')' : ''}`
+    window.location.href = `mailto:contact@couverture-milonaise.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    turn(true)
+  })
+  $('.dv-again').addEventListener('click', () => turn(false))
 }
 
 /* ---------- portfolio cards: hover panel + slider ---------- */
@@ -824,6 +930,7 @@ async function boot() {
     root.classList.add('is-ready')
     zone()
     cards()
+    devisForm()
     return
   }
 
@@ -834,11 +941,12 @@ async function boot() {
   $$('[data-split]').forEach(el => { if (!el.closest('.hero')) reveal(el, el.dataset.split) })
   $$('[data-reveal]').forEach(el => reveal(el, el.dataset.reveal))
   servicesStrip()
-  quoteFill()
+  reviewsScene()
   whyFlight()
   azDeck()
   parallax()
   cards()
+  devisForm()
   smoothScroll()
 
   root.classList.add('is-ready')
