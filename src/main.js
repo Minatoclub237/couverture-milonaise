@@ -38,42 +38,65 @@ function splitChars(el) {
   return [...mask.children]
 }
 
+// Words of an element, keeping <br> and which pieces sit in <em> (the serif italic accent).
+// Punctuation written right after an </em> stays glued to its word.
+function tokens(el) {
+  const out = []
+  let glue = false
+  const walk = (node, it) => node.childNodes.forEach(n => {
+    if (n.nodeType === 3) {
+      n.textContent.split(/([ \t\n\r]+)/).forEach(p => {
+        if (!p) return
+        if (/^[ \t\n\r]+$/.test(p)) { glue = false; return }
+        if (glue && out.length && !out.at(-1).br) out.at(-1).segs.push({ t: p, it })
+        else out.push({ segs: [{ t: p, it }] })
+        glue = true
+      })
+    } else if (n.nodeName === 'BR') { out.push({ br: true }); glue = false }
+    else walk(n, it || n.nodeName === 'EM')
+  })
+  walk(el, false)
+  return out
+}
+function fillWord(span, segs) {
+  segs.forEach(s => {
+    if (!s.it) return span.appendChild(document.createTextNode(s.t))
+    const em = document.createElement('em')
+    em.textContent = s.t
+    span.appendChild(em)
+  })
+}
+
 // Keeps authored <br> line breaks.
 function splitWords(el) {
-  const rows = el.innerHTML.split(/<br\s*\/?>/i).map(h => {
-    const t = document.createElement('span')
-    t.innerHTML = h
-    return t.textContent.trim().split(/[ \t\n]+/).filter(Boolean)
-  })
+  const toks = tokens(el)
   el.textContent = ''
   const out = []
-  rows.forEach((words, r) => {
-    if (r > 0) el.appendChild(document.createElement('br'))
-    words.forEach((w, i) => {
-      const m = document.createElement('span')
-      m.className = 'mask'
-      const s = document.createElement('span')
-      s.className = 'wd'
-      s.textContent = w
-      m.appendChild(s)
-      el.appendChild(m)
-      if (i < words.length - 1) el.appendChild(document.createTextNode(' '))
-      out.push(s)
-    })
+  toks.forEach((tk, i) => {
+    if (tk.br) return el.appendChild(document.createElement('br'))
+    const m = document.createElement('span')
+    m.className = 'mask'
+    const s = document.createElement('span')
+    s.className = 'wd'
+    fillWord(s, tk.segs)
+    m.appendChild(s)
+    el.appendChild(m)
+    if (toks[i + 1] && !toks[i + 1].br) el.appendChild(document.createTextNode(' '))
+    out.push(s)
   })
   return out
 }
 
 // Groups words into masked lines by their rendered position.
 function splitLines(el, wordClass = '') {
-  const parts = el.textContent.trim().replace(/\s*\n\s*/g, ' ').split(/[ \t\n]+/)
+  const toks = tokens(el).filter(tk => !tk.br)
   el.textContent = ''
-  const words = parts.map((p, i) => {
+  const words = toks.map((tk, i) => {
     const s = document.createElement('span')
     s.className = ('w ' + wordClass).trim()
-    s.textContent = p
+    fillWord(s, tk.segs)
     el.appendChild(s)
-    if (i < parts.length - 1) el.appendChild(document.createTextNode(' '))
+    if (i < toks.length - 1) el.appendChild(document.createTextNode(' '))
     return s
   })
   const rows = []
@@ -97,6 +120,21 @@ function splitLines(el, wordClass = '') {
     el.appendChild(mask)
     return inner
   })
+}
+
+/* Live opening status from the Google hours (Mon–Fri 8 h–18 h, Paris time) */
+function openStatus() {
+  const call = $('.nav-call'), label = $('.nav-status')
+  if (!call) return
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+  const d = now.getDay(), h = now.getHours() + now.getMinutes() / 60
+  const weekday = d >= 1 && d <= 5
+  const open = weekday && h >= 8 && h < 18
+  label.textContent = open ? "Ouvert · jusqu'à 18 h"
+    : weekday && h < 8 ? 'Fermé · ouvre à 8 h'
+    : d >= 1 && d <= 4 ? 'Fermé · ouvre demain 8 h'
+    : 'Fermé · ouvre lundi 8 h'
+  call.classList.toggle('is-open', open)
 }
 
 /* ---------- scroll-scrubbed reveals ----------
@@ -924,6 +962,7 @@ function smoothScroll() {
 
 /* ---------- boot ---------- */
 async function boot() {
+  openStatus()
   await document.fonts.ready
 
   if (reduce) {

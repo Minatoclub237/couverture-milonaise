@@ -1,4 +1,15 @@
-@import '@fontsource-variable/inter-tight';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/barlow-condensed/800.css';
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
+@import '@fontsource/monaspace-neon/400.css';
+@import '@fontsource/monaspace-neon/500.css';
 
 /* Every desktop measure is taken from the 1440 × 960 reference frame of the video.
    --u = 1 reference pixel, so the layout scales proportionally with the viewport. */
@@ -16,7 +27,11 @@
   --accent-soft: #edf5f1;
   --accent-line: #d3e6dd;
   --accent-bright: #8ed2bb;
-  --font: 'Inter Tight Variable', 'Inter Tight', 'Helvetica Neue', Arial, sans-serif;
+  --font: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --f-serif: 'Instrument Serif', Georgia, serif;
+  --f-mono: 'Monaspace Neon', ui-monospace, Menlo, Consolas, monospace;
+  --fs-mono: max(12.5px, calc(var(--u) * 13));
   --ease: cubic-bezier(.22, 1, .36, 1);
   /* Type floors: the 1440 grid scales down, readable sizes do not */
   --fs-label: max(14px, calc(var(--u) * 14));
@@ -52,6 +67,7 @@ figure { margin: 0; }
 .mask > .ch, .mask > .wd { display: inline-block; will-change: transform; }
 .line-mask { display: block; overflow: hidden; padding: 0.04em 0 0.14em; margin: -0.04em 0 -0.14em; }
 .line-inner { display: block; will-change: transform; }
+.w { white-space: nowrap; } /* a split word never breaks at its own hyphen */
 html.js [data-split], html.js [data-reveal] { visibility: hidden; }
 html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visible; }
 
@@ -198,7 +214,7 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
 .fab-call .i-tel { width: 24px; height: 24px; }
 .fab-call.is-on { transform: scale(1); }
 
-@media (min-width: 900px) and (max-width: 1180px) { .nav-links { display: none; } }
+@media (min-width: 900px) and (max-width: 1320px) { .nav-links { display: none; } .nav-right { margin-left: auto; } }
 
 /* ============ SUR LE CHANTIER : mur de vidéos ============ */
 .reels { position: relative; background: #0b0d0c; color: #fff; }
@@ -632,6 +648,111 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
 .socials { display: flex; gap: calc(var(--u) * 24); }
 .socials svg { width: max(20px, calc(var(--u) * 20)); height: max(20px, calc(var(--u) * 20)); fill: currentColor; }
 
+/* ============ TYPE SYSTEM ============
+   Display: Barlow Condensed (poster capitals) · Text: Barlow · Accent: Instrument Serif italic · Labels: Monaspace Neon */
+em { font-family: var(--f-serif); font-style: italic; font-weight: 400; text-transform: none; letter-spacing: -0.01em; }
+.hero-title, .about-title, .t-word, .why-copy h3, .why-ghost, .why-mask, .zone-num, .az-title, .reels-title, .reels-names,
+.rv-num, .dv-title, .dv-thanks, .cta-title, .az-front h3, .f-services, .f-name, .t-cap > span, .logo, .rv-reply--big {
+  font-family: var(--f-display); text-transform: uppercase;
+}
+.hero-title { top: calc(var(--hu) * 192); font-size: calc(var(--hu) * 292); font-weight: 800; line-height: 0.86; letter-spacing: -0.012em; }
+.about-title { font-size: calc(var(--u) * 292); font-weight: 800; line-height: 0.86; letter-spacing: -0.012em; }
+.t-word { font-size: calc(var(--u) * 140); font-weight: 700; line-height: 0.8; letter-spacing: -0.005em; }
+.why-copy h3 { font-size: calc(var(--u) * 88); font-weight: 700; line-height: 0.86; letter-spacing: 0; }
+.why-ghost { font-size: calc(var(--u) * 320); font-weight: 800; letter-spacing: 0; }
+.why-mask { font-weight: 700; letter-spacing: 0; }
+.zone-num { font-size: calc(var(--hu) * 320); font-weight: 800; letter-spacing: -0.02em; }
+.zone-unit { margin-left: calc(var(--hu) * 10); font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: calc(var(--hu) * 84); letter-spacing: -0.02em; }
+.az-title { font-size: calc(var(--hu) * 176); font-weight: 800; letter-spacing: -0.005em; }
+.reels-title { font-size: calc(var(--hu) * 200); font-weight: 800; line-height: 0.86; letter-spacing: -0.005em; }
+.reels-names { font-size: calc(var(--hu) * 124); font-weight: 800; letter-spacing: -0.005em; }
+.rv-num { font-size: calc(var(--hu) * 272); font-weight: 800; letter-spacing: -0.02em; }
+.rv-of { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: calc(var(--hu) * 68); letter-spacing: -0.02em; color: var(--accent); }
+.dv-title { font-size: calc(var(--u) * 112); font-weight: 800; line-height: 0.88; letter-spacing: -0.005em; }
+.dv-thanks { font-weight: 800; letter-spacing: 0; }
+.cta-title { font-size: calc(var(--u) * 56); font-weight: 700; line-height: 0.92; letter-spacing: 0; }
+.az-front h3 { font-size: calc(var(--hu) * 38); font-weight: 700; line-height: 0.95; letter-spacing: 0.005em; }
+.f-services { font-size: calc(var(--u) * 30); font-weight: 600; line-height: 1.3; letter-spacing: 0.01em; }
+.f-name { font-size: max(26px, calc(var(--u) * 32)); font-weight: 700; letter-spacing: 0.02em; }
+.t-cap > span { font-size: max(18px, calc(var(--u) * 21)); font-weight: 600; letter-spacing: 0.04em; }
+.logo { font-weight: 700; font-size: max(16px, calc(var(--u) * 18)); letter-spacing: 0.07em; }
+.rv-reply--big { font-size: max(32px, calc(var(--hu) * 50)); font-weight: 700; line-height: 0.95; letter-spacing: 0; }
+.hero-title .mask, .about-title .mask, .az-title .mask, .reels-title .mask, .dv-title .mask { padding: 0.14em 0.03em 0.06em; margin: -0.14em -0.03em -0.06em; }
+.hero-title .mask { overflow: visible; }
+.reels-title em, .dv-title em, .cta-title em, .rv-reply--big em { font-size: 1.06em; letter-spacing: -0.025em; }
+
+/* text: Barlow, with the serif italic carrying the key phrase */
+.hero-text, .services-title, .work-text, .about-text { font-weight: 400; letter-spacing: -0.012em; }
+.hero-text em, .services-title em, .work-text em, .about-text em, .zone-line em, .az-sub em { font-size: 1.1em; line-height: 1; }
+.f-slogan { font-family: var(--f-serif); font-style: italic; font-size: calc(var(--u) * 60); line-height: 1.02; letter-spacing: -0.012em; }
+.rv-text { font-family: var(--f-serif); font-size: max(20px, calc(var(--hu) * 27)); line-height: 1.22; letter-spacing: -0.005em; }
+.az-n { font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: calc(var(--hu) * 88); letter-spacing: -0.02em; }
+.work-cats b, .rv-name { font-weight: 700; }
+
+/* labels: Monaspace, technical and calm */
+.kicker, .hero-label, .hero-loc, .scroll-hint, .why-count, .why-n, .reels-meta, .rv-meta, .pager, .reel-chip, .dv-set legend,
+.dv-field > span, .dv-direct small, .f-head, .f-role, .f-bottom, .rv-kick, .rv-when, .cta-kicker, .card-cap .muted, .az-tag,
+.nav-links i, .nav-status, .ht-rge, .hero-label i {
+  font-family: var(--f-mono); font-feature-settings: 'calt' 1; font-weight: 500; font-size: var(--fs-mono); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.kicker, .scroll-hint, .dv-set legend { letter-spacing: 0.14em; }
+.reel-chip { text-transform: none; letter-spacing: 0; }
+.hero-label { line-height: 1.4; color: #4a524f; }
+.hero-label i, .nav-links i { font-style: normal; color: var(--accent); }
+.hero-label i { margin-right: 12px; }
+
+/* calls to action: condensed capitals */
+.btn, .card-cap a, .card-panel-top a, .t-cap a, .reels-follow, .rv-google, .dv-again {
+  font-family: var(--f-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.btn { font-size: max(17px, calc(var(--u) * 19)); }
+.card-cap a, .card-panel-top a, .t-cap a, .reels-follow, .rv-google, .dv-again { font-size: max(16px, calc(var(--u) * 18)); }
+.btn::after, .card-cap a::after, .card-panel-top a::after, .t-cap a::after, .reels-follow::after, .rv-google::after { font-family: var(--font); }
+.dv-direct b, .bar-tel { font-family: var(--f-display); font-weight: 700; letter-spacing: 0.03em; }
+.dv-direct b { font-size: max(24px, calc(var(--u) * 30)); }
+.bar-tel { font-size: 20px; }
+
+/* hero details */
+.hero-loc { top: calc(var(--hu) * 500); color: var(--accent); }
+.hero-text { top: calc(var(--hu) * 488); width: calc(var(--hu) * 555); }
+.hero-cta { top: calc(var(--hu) * 722); }
+.hero-trust { gap: 8px; }
+.ht-rating { display: flex; align-items: baseline; gap: 10px; color: #4a524f; font-size: max(15px, calc(var(--hu) * 16)); }
+.ht-rating .stars { color: #f6b400; font-size: 17px; letter-spacing: 0.05em; }
+.ht-rating b { font-family: var(--f-display); font-size: max(22px, calc(var(--hu) * 26)); font-weight: 800; color: var(--ink); line-height: 1; }
+.ht-rge { align-self: flex-start; padding: 6px 12px; border: 1px solid var(--accent-line); border-radius: 999px; color: var(--accent); }
+
+/* ============ NAVBAR ============ */
+.nav { left: calc(var(--hu) * 41); right: calc(var(--hu) * 41); width: auto; gap: calc(var(--hu) * 36); }
+.nav-links { margin-left: auto; gap: calc(var(--hu) * 30); }
+.nav-links a { display: inline-flex; align-items: baseline; gap: 7px; font-size: var(--fs-nav); font-weight: 500; letter-spacing: -0.005em; }
+.nav-links a::after { display: none; }
+.nav-links i { font-size: 11px; letter-spacing: 0.04em; }
+.nav-links span { display: inline-block; height: 1.25em; line-height: 1.25em; overflow: hidden; vertical-align: bottom; }
+.nav-links span b { display: block; font-weight: 500; text-shadow: 0 1.25em 0 var(--accent); transition: transform .55s var(--ease); }
+.nav-links a:hover span b, .nav-links a:focus-visible span b { transform: translateY(-1.25em); }
+.nav-right { display: flex; align-items: center; gap: 10px; margin-left: calc(var(--hu) * 36); }
+.nav-call {
+  display: inline-flex; align-items: center; gap: 12px; height: 48px; padding: 0 20px 0 16px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92); box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.12);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: box-shadow .3s;
+}
+.nav-call:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.nav-dot { position: relative; flex: none; width: 8px; height: 8px; border-radius: 50%; background: #b9c1bd; }
+.nav-call.is-open .nav-dot { background: #22a06b; }
+.nav-call.is-open .nav-dot::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; border: 1.5px solid #22a06b; animation: dot-pulse 2.2s ease-out infinite; }
+@keyframes dot-pulse { from { transform: scale(0.6); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+.nav-status { font-size: 11.5px; color: #59625e; white-space: nowrap; }
+.nav-call b { font-family: var(--f-display); font-size: 21px; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap; }
+.nav-devis {
+  display: inline-flex; align-items: center; gap: 0.5em; height: 48px; padding: 0 22px; border-radius: 999px;
+  background: var(--ink); color: #fff; font-family: var(--f-display); font-size: 17px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  transition: background .3s;
+}
+.nav-devis::after { content: '→'; font-family: var(--font); font-weight: 400; transition: transform .45s var(--ease); }
+.nav-devis:hover { background: var(--accent); }
+.nav-devis:hover::after { transform: translateX(4px); }
+
 /* ============ MOBILE ============ */
 @media (max-width: 899px) {
   :root { --u: calc(100vw / 390); --hu: calc(100vw / 390); }
@@ -752,7 +873,7 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
   .az-tag { top: 12px; right: 12px; font-size: 11px; padding: 3px 8px; }
   .az-front h3 { font-size: 17px; }
   .az-back .logo-mark { width: 64px; }
-  .az-note { font-size: 14px; padding: 0 16px; }
+  .az-note { display: none; } /* the SAGACITÉ group is also named in À propos */
 
   .footer-inner { grid-template-columns: 1fr 1fr; gap: 36px 20px; padding: 72px 16px 24px; }
   .f-slogan { grid-column: 1 / -1; font-size: 26px; }
@@ -772,6 +893,40 @@ html.js.is-ready [data-split], html.js.is-ready [data-reveal] { visibility: visi
   .cta-inner { padding: 24px; }
   .kicker { font-size: 13px; }
   .socials svg { width: 22px; height: 22px; }
+  /* type system on phones */
+  .nav { left: 0; right: 0; gap: 10px; }
+  .nav-right { margin-left: auto; }
+  .nav-status, .nav-devis { display: none; }
+  .nav-call { height: 42px; padding: 0 14px 0 12px; gap: 10px; }
+  .nav-call b { font-size: 19px; }
+  .logo { font-size: 15px; letter-spacing: 0.05em; }
+  .hero-label { font-size: 11.5px; }
+  .hero-title { font-size: 26vw; line-height: 0.86; margin-top: 10px; }
+  .hero-text { font-size: 21px; }
+  .ht-rating { font-size: 15px; }
+  .about-title { font-size: 26vw; }
+  .t-word { font-size: 23vw; }
+  .why-copy h3 { font-size: 46px; }
+  .why-ghost { font-size: 40vw; }
+  .zone-num { font-size: 150px; }
+  .zone-unit { font-size: 48px; }
+  .az-title { font-size: 25vw; }
+  .az-head { top: 6vh; }
+  .az-deck { top: 64%; }
+  .az-front h3 { font-size: 22px; }
+  .az-n { font-size: 40px; }
+  .reels-title { font-size: 20vw; }
+  .reels-names { font-size: 60px; }
+  .rv-num { font-size: 104px; }
+  .rv-of { font-size: 32px; }
+  .rv-text { font-size: 20px; }
+  .rv-reply--big { font-size: 36px; }
+  .dv-title { font-size: 17vw; }
+  .dv-direct b { font-size: 26px; }
+  .cta-title { font-size: 40px; }
+  .f-services { font-size: 30px; }
+  .f-slogan { font-size: 34px; }
+  .btn { font-size: 17px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
